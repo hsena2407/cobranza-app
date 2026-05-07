@@ -592,6 +592,31 @@ function verCliente(id){
       <div class="info-box"><div class="info-box-label">91+ días</div><div class="info-box-value" style="color:var(--red);font-weight:800">${fmt(cl.dias_91_mas)}</div></div>
     </div>
     <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Facturas pendientes
+        </span>
+        <span style="font-size:12px;color:var(--muted)">${cl.facturas?cl.facturas.filter(f=>f.saldo>0).length:0} documentos</span>
+      </div>
+      ${cl.facturas && cl.facturas.filter(f=>f.saldo>0).length > 0
+        ? `<div class="table-wrap"><table>
+            <thead><tr><th>Documento</th><th>Fecha</th><th>Saldo ($)</th><th>Al corriente</th><th>1-30 días</th><th>31-60 días</th><th>61-90 días</th><th>91+ días</th></tr></thead>
+            <tbody>${cl.facturas.filter(f=>f.saldo>0).map(f=>`<tr>
+              <td style="font-weight:500">${f.doc}</td>
+              <td style="color:var(--muted)">${f.fecha}</td>
+              <td style="text-align:right;font-weight:600">${fmt(f.saldo)}</td>
+              <td style="text-align:right;color:var(--green)">${f.al_corriente>0?fmt(f.al_corriente):'—'}</td>
+              <td style="text-align:right;color:var(--amber)">${f['1_30']>0?fmt(f['1_30']):'—'}</td>
+              <td style="text-align:right;color:var(--amber)">${f['31_60']>0?fmt(f['31_60']):'—'}</td>
+              <td style="text-align:right;color:var(--red)">${f['61_90']>0?fmt(f['61_90']):'—'}</td>
+              <td style="text-align:right;color:var(--red);font-weight:${f['91_mas']>0?'700':'400'}">${f['91_mas']>0?fmt(f['91_mas']):'—'}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table></div>`
+        : '<p style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Sin facturas pendientes</p>'}
+    </div>
+    <div class="card">
       <div class="card-header"><span class="card-title">Historial de gestiones</span></div>
       ${gests.length ? `<div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody>${
         gests.map(g=>`<tr>
