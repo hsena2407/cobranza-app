@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Cobranza</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+:root{
+  --nav:#1F3864;--blue:#2E75B6;--white:#fff;--alt:#EBF3FB;--brd:#BDD7EE;
+  --red:#C0392B;--red-light:#FCE4D6;--green:#1E8449;--green-light:#D5F5E3;
+  --amber:#E67E22;--amber-light:#FEF9E7;--purple:#4A235A;--purple-light:#EAD8F7;
+  --gray:#F4F6F8;--text:#1a1a1a;--muted:#6B7280
+}
+body{background:var(--gray);color:var(--text);min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--nav);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{color:#fff;font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+.logo svg{width:22px;height:22px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.badge{background:var(--red);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.badge-renta{background:var(--purple)}
+
+/* ── SIDEBAR NAV ── */
+.layout{display:flex;min-height:calc(100vh - 54px)}
+.sidebar{width:200px;background:#fff;border-right:1px solid var(--brd);padding:16px 0;flex-shrink:0;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:var(--alt);color:var(--text)}
+.nav-item.active{background:var(--alt);color:var(--blue);border-left-color:var(--blue)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-section{font-size:10px;font-weight:600;color:var(--muted);padding:12px 18px 4px;letter-spacing:.8px;text-transform:uppercase}
+
+/* ── MAIN ── */
+.main{flex:1;padding:20px;overflow:auto;min-width:0}
+.page{display:none}.page.active{display:block}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:14px 16px}
+.kpi-label{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.kpi-value{font-size:24px;font-weight:700;color:var(--text)}
+.kpi-value.danger{color:var(--red)}
+.kpi-value.success{color:var(--green)}
+.kpi-value.warning{color:var(--amber)}
+.kpi-value.purple{color:var(--purple)}
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.card-header{padding:12px 16px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--brd);background:var(--gray);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #F0F4F8;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#F8FAFC}
+
+/* ── PILLS ── */
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
+.pill-red{background:var(--red-light);color:var(--red)}
+.pill-amber{background:var(--amber-light);color:#92400e}
+.pill-green{background:var(--green-light);color:var(--green)}
+.pill-blue{background:var(--alt);color:var(--blue)}
+.pill-purple{background:var(--purple-light);color:var(--purple)}
+.pill-gray{background:#F3F4F6;color:#6B7280}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--brd);background:#fff;cursor:pointer;color:var(--text);transition:all .15s}
+.btn:hover{background:var(--alt)}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-primary:hover{background:#1d5fa3}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn svg{width:14px;height:14px}
+
+/* ── SEARCH ── */
+.search-row{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+.search-input{flex:1;max-width:320px;padding:8px 12px;border:1px solid var(--brd);border-radius:7px;font-size:13px;outline:none}
+.search-input:focus{border-color:var(--blue)}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:15px;font-weight:600}
+.modal-body{padding:20px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--brd);display:flex;justify-content:flex-end;gap:8px}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.form-control{width:100%;padding:8px 11px;border:1px solid var(--brd);border-radius:7px;font-size:13px;outline:none}
+.form-control:focus{border-color:var(--blue)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── CLIENT DETAIL PANEL ── */
+.detail-panel{display:none}
+.detail-panel.open{display:block}
+.detail-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:16px;padding:0;background:none;border:none}
+.detail-back:hover{color:var(--text)}
+.detail-header{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--alt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
+.avatar.renta{background:var(--purple-light);color:var(--purple)}
+.detail-info h2{font-size:15px;font-weight:600;margin-bottom:4px}
+.detail-meta{display:flex;gap:10px;flex-wrap:wrap}
+.detail-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.info-box{background:#fff;border:1px solid var(--brd);border-radius:8px;padding:10px 12px}
+.info-box-label{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:500;text-transform:uppercase}
+.info-box-value{font-size:14px;font-weight:600}
+
+/* ── IMPORT ZONE ── */
+.import-zone{border:2px dashed var(--brd);border-radius:10px;padding:40px;text-align:center;cursor:pointer;transition:.15s}
+.import-zone:hover{border-color:var(--blue);background:var(--alt)}
+.import-zone input{display:none}
+.import-icon{width:40px;height:40px;margin:0 auto 12px;color:var(--muted)}
+.import-history{margin-top:16px}
+
+/* ── REPORT ── */
+.report-card{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:20px;margin-bottom:14px}
+.report-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+/* ── ALERT BANNER ── */
+.alert-banner{border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;font-weight:500}
+.alert-danger{background:var(--red-light);color:var(--red);border:1px solid #f5c6c6}
+.alert-warning{background:var(--amber-light);color:#92400e;border:1px solid #fcd297}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #a7e3be}
+.alert-purple{background:var(--purple-light);color:var(--purple);border:1px solid #d5aee8}
+
+/* ── PHONE LINK ── */
+a.tel{color:var(--blue);text-decoration:none;font-weight:500}
+a.tel:hover{text-decoration:underline}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Sistema de Cobranza
+  </div>
+  <div class="topbar-right">
+    <span class="badge" id="badge-hoy">0 hoy</span>
+    <span class="badge badge-renta" id="badge-renta">0 renta</span>
+    <span style="color:#aaa;font-size:12px" id="topbar-fecha"></span>
+  </div>
+</div>
+
+<div class="layout">
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">Principal</div>
+  <div class="nav-item active" onclick="showPage('hoy',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    Alertas del día
+  </div>
+  <div class="nav-item" onclick="showPage('clientes',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Clientes
+  </div>
+  <div class="nav-item" onclick="showPage('gestiones',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+    Gestiones
+  </div>
+  <div class="nav-section">Renta</div>
+  <div class="nav-item" onclick="showPage('renta',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Clientes renta
+  </div>
+  <div class="nav-section">Reportes</div>
+  <div class="nav-item" onclick="showPage('reporte',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Reporte semanal
+  </div>
+  <div class="nav-section">Datos</div>
+  <div class="nav-item" onclick="showPage('importar',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Importar AS
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- ══ PAGE: ALERTAS DEL DÍA ══ -->
+<div class="page active" id="page-hoy">
+  <div class="kpi-grid" id="kpis-hoy"></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Llamar hoy
+      </span>
+      <button class="btn btn-primary" onclick="abrirModalGestion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Registrar llamada
+      </button>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Estatus</th><th>Último resultado</th><th></th></tr></thead><tbody id="tbody-hoy"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title" style="color:var(--red)">Seguimientos vencidos</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Vencido desde</th><th>Último resultado</th><th></th></tr></thead><tbody id="tbody-vencidos"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: CLIENTES ══ -->
+<div class="page" id="page-clientes">
+  <div id="lista-clientes">
+    <div class="search-row">
+      <input class="search-input" placeholder="Buscar por nombre, ID o teléfono..." oninput="filtrarClientes(this.value)" id="q-clientes">
+      <select class="search-input" style="max-width:160px" onchange="filtrarClientes(document.getElementById('q-clientes').value)" id="filtro-estatus">
+        <option value="">Todos</option>
+        <option value="critico">Crítico 91+</option>
+        <option value="vencido">Vencido</option>
+        <option value="corriente">Al corriente</option>
+        <option value="renta">Renta</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Antigüedad</th><th>Tipo</th><th></th></tr></thead><tbody id="tbody-clientes"></tbody></table></div>
+    </div>
+  </div>
+  <div class="detail-panel" id="detalle-cliente"></div>
+</div>
+
+<!-- ══ PAGE: GESTIONES ══ -->
+<div class="page" id="page-gestiones">
+  <div class="search-row">
+    <input class="search-input" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
+    <button class="btn btn-primary" onclick="abrirModalGestion()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nueva gestión
+    </button>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Próx. seguimiento</th><th>Notas</th><th></th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: RENTA ══ -->
+<div class="page" id="page-renta">
+  <div class="alert-purple" id="banner-renta" style="margin-bottom:14px"></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" style="color:var(--purple)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Clientes de renta — seguimiento mensual
+      </span>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: REPORTE ══ -->
+<div class="page" id="page-reporte">
+  <div class="report-card">
+    <div class="report-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Reporte semanal de cobranza
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Semana inicio</label>
+        <input type="date" class="form-control" id="rep-inicio" style="width:160px">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Semana fin</label>
+        <input type="date" class="form-control" id="rep-fin" style="width:160px">
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="generarReporte()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Generar y descargar PDF
+        </button>
+      </div>
+    </div>
+    <div id="preview-reporte" style="background:var(--gray);border-radius:8px;padding:16px;min-height:100px"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: IMPORTAR ══ -->
+<div class="page" id="page-importar">
+  <div class="card" style="padding:24px">
+    <div class="report-title">Importar Antigüedad de Saldos desde SAE</div>
+    <div class="import-zone" onclick="document.getElementById('file-as').click()">
+      <input type="file" id="file-as" accept=".xlsx,.xls" onchange="importarAS(this)">
+      <svg class="import-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona tu archivo AS (.xlsx)</p>
+      <p style="font-size:12px;color:var(--muted)">Exportado desde SAE 9.0 — Antigüedad de saldos</p>
+    </div>
+    <div id="import-status" style="margin-top:16px"></div>
+    <div style="background:var(--alt);border-radius:8px;padding:14px;margin-top:16px;font-size:13px">
+      <strong>Última importación:</strong> <span id="ultima-importacion">07/05/2026 — 152 clientes, 619 documentos</span>
+    </div>
+  </div>
+  <div class="card" style="padding:20px">
+    <div class="report-title">Importar directorio de clientes (teléfonos)</div>
+    <div class="import-zone" onclick="document.getElementById('file-cli').click()">
+      <input type="file" id="file-cli" accept=".xlsx,.xls" onchange="importarClientes(this)">
+      <svg class="import-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona el archivo de clientes activos (.xlsx)</p>
+      <p style="font-size:12px;color:var(--muted)">Col A = Nombre, Col C = Teléfono</p>
+    </div>
+    <div id="import-cli-status" style="margin-top:12px"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ══ MODAL: NUEVA GESTIÓN ══ -->
+<div class="modal-bg" id="modal-gestion">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title">Registrar llamada / contacto</span>
+    <button class="btn" style="padding:4px 8px;border:none" onclick="cerrarModal('modal-gestion')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label class="form-label">Cliente</label>
+      <select class="form-control" id="mg-cliente"><option value="">Selecciona...</option></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input type="date" class="form-control" id="mg-fecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora</label>
+        <input type="time" class="form-control" id="mg-hora">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Medio</label>
+        <select class="form-control" id="mg-medio">
+          <option>Llamada</option><option>WhatsApp</option><option>Email</option>
+          <option>Visita</option><option>Buzón de voz</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contacto que atendió</label>
+        <input type="text" class="form-control" id="mg-contacto" placeholder="Nombre">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Resultado</label>
+      <select class="form-control" id="mg-resultado">
+        <option>Prometió pagar</option><option>Pagará hoy</option>
+        <option>No contestó</option><option>Número equivocado</option>
+        <option>Negó deuda</option><option>Solicitó espera</option>
+        <option>Pagado confirmado</option><option>Otro</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Próximo seguimiento</label>
+        <input type="date" class="form-control" id="mg-seguimiento">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Compromiso de pago ($)</label>
+        <input type="number" class="form-control" id="mg-compromiso" placeholder="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-control" id="mg-notas" rows="3" placeholder="Observaciones..."></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-gestion')">Cancelar</button>
+    <button class="btn btn-primary" onclick="guardarGestion()">Guardar</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ MODAL: EDITAR RENTA ══ -->
+<div class="modal-bg" id="modal-renta">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title" id="mr-titulo">Actualizar renta</span>
+    <button class="btn" style="padding:4px 8px;border:none" onclick="cerrarModal('modal-renta')">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="mr-id">
+    <div class="form-group">
+      <label class="form-label">Monto mensual de renta ($)</label>
+      <input type="number" class="form-control" id="mr-monto" placeholder="0.00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Próximo vencimiento</label>
+      <input type="date" class="form-control" id="mr-vencimiento">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas del contrato</label>
+      <textarea class="form-control" id="mr-notas" rows="2" placeholder="Ej: paga el día 1 de cada mes..."></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-renta')">Cancelar</button>
+    <button class="btn btn-primary" onclick="guardarRenta()">Guardar</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+let CLIENTES = [{"id": "87", "nombre": "COMPLEX QUIMICA", "plazo": "30 D", "tel": "81 8124 0400", "es_renta": false, "saldo_total": 13804, "al_corriente": 5510, "dias_1_30": 8294, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "174", "nombre": "SALINAS Y SALINAS ABOGADOS", "plazo": "15 D", "tel": "(081) 8333-7069", "es_renta": false, "saldo_total": 1740, "al_corriente": 1740, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "180", "nombre": "LOBEIRA ASESORES AGENTE DE SEGUROS Y DE FIANZAS", "plazo": "15 D", "tel": "81834-74060", "es_renta": false, "saldo_total": 10416.8, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 10416.8, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "267", "nombre": "BURCIAGA MENDOZA ASESORES CONTABLES", "plazo": "15 D", "tel": "(081) 8372-7776", "es_renta": false, "saldo_total": 5278, "al_corriente": 0, "dias_1_30": 5278, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "294", "nombre": "TRANSPORTES URBANOS DEL SUR", "plazo": "15 D", "tel": "(081) 8317-8274", "es_renta": false, "saldo_total": 6728, "al_corriente": 0, "dias_1_30": 6728, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "369", "nombre": "MAXIMA DISTINCION", "plazo": "RENTA", "tel": "81 8335-0177", "es_renta": true, "saldo_total": 0, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "410", "nombre": "SANILOCK COMERCIAL", "plazo": "RENTA", "tel": "81 1050 2466", "es_renta": true, "saldo_total": 53393, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 53393, "dias_91_mas": 0}, {"id": "516", "nombre": "RUIZ VELASCO ABOGADOS", "plazo": "RENTA", "tel": "81 2724 7727", "es_renta": true, "saldo_total": 8195.62, "al_corriente": 8195.62, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "711", "nombre": "NOVOCAST", "plazo": "RENTA", "tel": "8288-5800", "es_renta": true, "saldo_total": 0, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "820", "nombre": "BROCHAS Y PRODUCTOS", "plazo": "15 D", "tel": "81 8124 3050", "es_renta": false, "saldo_total": 11600, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 11600}, {"id": "866", "nombre": "INSTITUTO MONTE BLANCO", "plazo": "RENTA", "tel": "(081) 8315-4036", "es_renta": true, "saldo_total": 21158.4, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 21158.4, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "919", "nombre": "FOCOMSA", "plazo": "30 D", "tel": "818331 3500", "es_renta": false, "saldo_total": 17632, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 17632, "dias_91_mas": 0}, {"id": "937", "nombre": "DMP MONTERREY", "plazo": "RENTA", "tel": "(0181) 8156-7800", "es_renta": true, "saldo_total": 18216.33, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 18216.33, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "957", "nombre": "ECI REGO", "plazo": "RENTA", "tel": "818032 5250", "es_renta": true, "saldo_total": 2946.17, "al_corriente": 2946.17, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1041", "nombre": "GAMA ETIQUETAS", "plazo": "45 D", "tel": "81 1990 7838", "es_renta": false, "saldo_total": 138314.71, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 138314.71}, {"id": "1073", "nombre": "PLUMAS Y CERAMICA DE MONTERREY", "plazo": "30 D", "tel": "81 8190 2783", "es_renta": false, "saldo_total": 178524, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 178524, "dias_91_mas": 0}, {"id": "1120", "nombre": "CHAPA INDUSTRIAS", "plazo": "30 D", "tel": "81 8000 0800", "es_renta": false, "saldo_total": 29116, "al_corriente": 22620, "dias_1_30": 6496, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1611", "nombre": "VIRTUAL NETWORKS", "plazo": "15 D", "tel": "8117383618", "es_renta": false, "saldo_total": 42489.64, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 42489.64}, {"id": "1663", "nombre": "SENA CASTILLO ASESORES", "plazo": "15 D", "tel": "8112770277", "es_renta": false, "saldo_total": 51096.04, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 51096.04}, {"id": "1712", "nombre": "SDB ADMINISTRACION", "plazo": "RENTA", "tel": "81 1050 2466", "es_renta": true, "saldo_total": 72688.64, "al_corriente": 0, "dias_1_30": 72688.64, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1830", "nombre": "TECONNEX MEXICO", "plazo": "15 D", "tel": "8114684013", "es_renta": false, "saldo_total": 31731.8, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 31731.8, "dias_91_mas": 0}, {"id": "1897", "nombre": "CHYLEX", "plazo": "30 D", "tel": "81236045", "es_renta": false, "saldo_total": 23066.6, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 23066.6, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1952", "nombre": "SALVADOR FURUKAWA LLAMAS", "plazo": "30 D", "tel": "81 8031 5842", "es_renta": false, "saldo_total": 78820, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 78820, "dias_91_mas": 0}, {"id": "2030", "nombre": "CONNOR METAL STAMPING DE MEXICO", "plazo": "RENTA", "tel": "8153500669", "es_renta": true, "saldo_total": 147149.48, "al_corriente": 0, "dias_1_30": 147149.48, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2046", "nombre": "JORGE ALBERTO GONZALEZ GARCIA", "plazo": "30 D", "tel": "81 82813727", "es_renta": false, "saldo_total": 25868, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 25868, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2071", "nombre": "ELVIRA EVELIA ARRAMBIDE CANTU", "plazo": "RENTA", "tel": "81 1080 2792", "es_renta": true, "saldo_total": 12221.76, "al_corriente": 0, "dias_1_30": 12221.76, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2131", "nombre": "ROMULO CONTRERAS MARTINEZ", "plazo": "30 D", "tel": "81 1199 5628", "es_renta": false, "saldo_total": 22573.6, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 22573.6, "dias_91_mas": 0}, {"id": "2141", "nombre": "UNIFORM COLOR DE MEXICO", "plazo": "RENTA", "tel": "818-262-5266", "es_renta": true, "saldo_total": 10344.52, "al_corriente": 10344.52, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2181", "nombre": "SENDICA EDUCATION", "plazo": "RENTA", "tel": "81 1177 5612", "es_renta": true, "saldo_total": 300449.28, "al_corriente": 0, "dias_1_30": 300449.28, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2194", "nombre": "GRAFICA NUMERAL", "plazo": "30 D", "tel": "81 1577 8566", "es_renta": false, "saldo_total": 44892, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 44892, "dias_91_mas": 0}, {"id": "2202", "nombre": "MOTORAD DISTRIBUTION DE MEXICO", "plazo": "RENTA", "tel": "81 8075 7362", "es_renta": true, "saldo_total": 76172.42, "al_corriente": 0, "dias_1_30": 76172.42, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2206", "nombre": "MOTORAD DE MEXICO", "plazo": "RENTA", "tel": "81 8075 7362", "es_renta": true, "saldo_total": 61510.35, "al_corriente": 0, "dias_1_30": 61510.35, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2237", "nombre": "GRUPO 3 RAMOS", "plazo": "RENTA", "tel": "", "es_renta": true, "saldo_total": 100452.29, "al_corriente": 0, "dias_1_30": 100452.29, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2262", "nombre": "ROMULO ALBERTO CONTRERAS GARCIA", "plazo": "30 D", "tel": "81 8091 5525", "es_renta": false, "saldo_total": 89544.4, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 89544.4}, {"id": "2273", "nombre": "BASES DINAMICAS DE VALORES", "plazo": "RENTA", "tel": "", "es_renta": true, "saldo_total": 207992.64, "al_corriente": 0, "dias_1_30": 207992.64, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2277", "nombre": "TANIA ESTEFANY TENEYUQUE GUTIERREZ", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 178891.44, "al_corriente": 178891.44, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2358", "nombre": "OSCAR VALDEZ CORTES", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 96234.94, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 96234.94}, {"id": "2434", "nombre": "BALTIMORE AIRCOIL COMPANY DE MEXICO", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 401241.71, "al_corriente": 0, "dias_1_30": 401241.71, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2494", "nombre": "RCI HUDSON DE MEXICO", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 188407.2, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 188407.2, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2538", "nombre": "JUDITH GONZALEZ GONZALEZ", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 63800, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 63800, "dias_91_mas": 0}];
+let GESTIONES = JSON.parse(localStorage.getItem('gestiones')||'[]');
+let RENTA_DATA = JSON.parse(localStorage.getItem('renta_data')||'{}');
+
+const TODAY = new Date().toISOString().split('T')[0];
+const fmt = n => '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+function getCliente(id){ return CLIENTES.find(c=>c.id==id)||{nombre:'?',tel:'',saldo_total:0,es_renta:false} }
+function initials(n){ const w=n.trim().split(' '); return (w[0][0]+(w[1]?w[1][0]:'')).toUpperCase() }
+
+function estatusCliente(cl){
+  if(cl.dias_91_mas>0) return {label:'Crítico 91+',cls:'pill-red'};
+  if(cl.dias_61_90>0)  return {label:'Vencido 61-90',cls:'pill-red'};
+  if(cl.dias_31_60>0)  return {label:'Vencido 31-60',cls:'pill-amber'};
+  if(cl.dias_1_30>0)   return {label:'Por vencer 1-30',cls:'pill-blue'};
+  if(cl.saldo_total<=0)return {label:'Sin saldo',cls:'pill-gray'};
+  return {label:'Al corriente',cls:'pill-green'};
+}
+function resultadoPill(r){
+  if(!r) return '';
+  if(r.includes('Prometió')||r.includes('hoy')||r.includes('Pagado')) return `<span class="pill pill-green">${r}</span>`;
+  if(r.includes('espera')||r.includes('Solicitó')) return `<span class="pill pill-amber">${r}</span>`;
+  if(r.includes('contestó')||r.includes('equivocado')) return `<span class="pill pill-gray">${r}</span>`;
+  return `<span class="pill pill-blue">${r}</span>`;
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='hoy') renderHoy();
+  if(id==='clientes') renderClientes();
+  if(id==='gestiones') renderGestiones();
+  if(id==='renta') renderRenta();
+  if(id==='reporte') initReporte();
+}
+
+// ══════════════════════════════════════════════════════
+// HOY
+// ══════════════════════════════════════════════════════
+function renderHoy(){
+  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY);
+  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
+  const rentaAlerta = CLIENTES.filter(c=>{
+    if(!c.es_renta) return false;
+    const rd = RENTA_DATA[c.id];
+    if(!rd?.vencimiento) return false;
+    const dias = Math.ceil((new Date(rd.vencimiento+' 12:00:00')-new Date())/86400000);
+    return dias<=3;
+  }).length;
+
+  document.getElementById('kpis-hoy').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${hoy.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${venc.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Saldo total</div><div class="kpi-value">${fmt(saldoTotal)}</div></div>
+    <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger">${criticos}</div></div>
+    <div class="kpi"><div class="kpi-label">Renta por vencer</div><div class="kpi-value purple">${rentaAlerta}</div></div>
+  `;
+
+  document.getElementById('badge-hoy').textContent = hoy.length + ' hoy';
+  document.getElementById('badge-renta').textContent = rentaAlerta + ' renta';
+
+  const makeRow = (g,showVenc) => {
+    const cl = getCliente(g.clienteId);
+    const est = estatusCliente(cl);
+    const dateCol = showVenc ? `<td style="color:var(--red)">${fmtDate(g.seguimiento)}</td>` : '';
+    return `<tr>
+      <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${g.clienteId}</span></td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${fmt(cl.saldo_total)}</td>
+      ${dateCol}
+      <td><span class="pill ${est.cls}">${est.label}</span></td>
+      <td>${resultadoPill(g.resultado)}</td>
+      <td>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="verCliente('${g.clienteId}')">Ver</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>
+      </td>
+    </tr>`;
+  };
+
+  document.getElementById('tbody-hoy').innerHTML = hoy.length
+    ? hoy.map(g=>makeRow(g,false)).join('')
+    : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Sin pendientes para hoy ✓</td></tr>';
+
+  document.getElementById('tbody-vencidos').innerHTML = venc.length
+    ? venc.map(g=>makeRow(g,true)).join('')
+    : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin seguimientos vencidos ✓</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// CLIENTES
+// ══════════════════════════════════════════════════════
+function filtrarClientes(q){
+  const filtroEst = document.getElementById('filtro-estatus').value;
+  let lista = CLIENTES;
+  if(q) lista = lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||c.id.includes(q)||c.tel.includes(q));
+  if(filtroEst==='critico') lista = lista.filter(c=>c.dias_91_mas>0);
+  else if(filtroEst==='vencido') lista = lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
+  else if(filtroEst==='corriente') lista = lista.filter(c=>c.al_corriente>0&&c.dias_1_30===0&&c.dias_31_60===0);
+  else if(filtroEst==='renta') lista = lista.filter(c=>c.es_renta);
+  renderClientes(lista);
+}
+
+function renderClientes(lista){
+  document.getElementById('lista-clientes').style.display='block';
+  document.getElementById('detalle-cliente').classList.remove('open');
+  lista = lista || CLIENTES;
+  // Sort by saldo desc
+  lista = [...lista].sort((a,b)=>b.saldo_total-a.saldo_total);
+  document.getElementById('tbody-clientes').innerHTML = lista.map(cl=>{
+    const est = estatusCliente(cl);
+    return `<tr>
+      <td style="color:var(--muted)">${cl.id}</td>
+      <td><strong>${cl.nombre}</strong></td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="text-align:right"><strong>${fmt(cl.saldo_total)}</strong></td>
+      <td><span class="pill ${est.cls}">${est.label}</span></td>
+      <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
+      <td>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="verCliente('${cl.id}')">Ver</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function verCliente(id){
+  const cl = getCliente(id);
+  const est = estatusCliente(cl);
+  const gests = GESTIONES.filter(g=>g.clienteId==id).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  document.getElementById('lista-clientes').style.display='none';
+  const panel = document.getElementById('detalle-cliente');
+  panel.innerHTML = `
+    <button class="detail-back" onclick="renderClientes()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Volver a clientes
+    </button>
+    <div class="detail-header">
+      <div class="avatar ${cl.es_renta?'renta':''}">${initials(cl.nombre)}</div>
+      <div class="detail-info">
+        <h2>${cl.nombre}</h2>
+        <div class="detail-meta">
+          ${cl.tel?`<a class="tel" href="tel:${cl.tel}" style="font-size:13px">📞 ${cl.tel}</a>`:'<span style="color:var(--muted);font-size:13px">Sin teléfono</span>'}
+          <span style="font-size:13px;color:var(--muted)">ID: ${cl.id} · ${cl.plazo}</span>
+        </div>
+        <div class="detail-chips" style="margin-top:8px">
+          <span class="pill ${est.cls}">${est.label}</span>
+          ${cl.es_renta?'<span class="pill pill-purple">Renta</span>':''}
+        </div>
+      </div>
+      <div style="margin-left:auto">
+        <button class="btn btn-primary" onclick="abrirModalGestion('${id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16z"/></svg>
+          Registrar llamada
+        </button>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-box"><div class="info-box-label">Saldo total</div><div class="info-box-value" style="color:${cl.saldo_total>0?'var(--red)':'var(--green)'}">${fmt(cl.saldo_total)}</div></div>
+      <div class="info-box"><div class="info-box-label">Al corriente</div><div class="info-box-value" style="color:var(--green)">${fmt(cl.al_corriente)}</div></div>
+      <div class="info-box"><div class="info-box-label">1-30 días</div><div class="info-box-value" style="color:var(--amber)">${fmt(cl.dias_1_30)}</div></div>
+      <div class="info-box"><div class="info-box-label">31-60 días</div><div class="info-box-value" style="color:var(--amber)">${fmt(cl.dias_31_60)}</div></div>
+      <div class="info-box"><div class="info-box-label">61-90 días</div><div class="info-box-value" style="color:var(--red)">${fmt(cl.dias_61_90)}</div></div>
+      <div class="info-box"><div class="info-box-label">91+ días</div><div class="info-box-value" style="color:var(--red);font-weight:800">${fmt(cl.dias_91_mas)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Historial de gestiones</span></div>
+      ${gests.length ? `<div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody>${
+        gests.map(g=>`<tr>
+          <td style="color:var(--muted)">${g.id}</td>
+          <td>${fmtDate(g.fecha)}</td>
+          <td>${g.medio}</td>
+          <td>${resultadoPill(g.resultado)}</td>
+          <td style="${g.seguimiento<TODAY?'color:var(--red)':g.seguimiento===TODAY?'color:var(--amber)':''}">${fmtDate(g.seguimiento)}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${g.notas||'—'}</td>
+        </tr>`).join('')
+      }</tbody></table></div>`
+      : '<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
+    </div>
+  `;
+  panel.classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════
+// GESTIONES
+// ══════════════════════════════════════════════════════
+function filtrarGestiones(q){
+  let lista = GESTIONES;
+  if(q) lista = lista.filter(g=>{
+    const cl=getCliente(g.clienteId);
+    return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase());
+  });
+  renderGestiones(lista);
+}
+
+function renderGestiones(lista){
+  lista = lista || GESTIONES;
+  lista = [...lista].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  document.getElementById('tbody-gestiones').innerHTML = lista.length ? lista.map(g=>{
+    const cl=getCliente(g.clienteId);
+    const segColor = g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
+    return `<tr>
+      <td style="color:var(--muted)">${g.id}</td>
+      <td><strong>${cl.nombre}</strong></td>
+      <td>${fmtDate(g.fecha)}</td>
+      <td>${g.medio}</td>
+      <td>${resultadoPill(g.resultado)}</td>
+      <td style="${segColor}">${fmtDate(g.seguimiento)}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL GESTIÓN
+// ══════════════════════════════════════════════════════
+function abrirModalGestion(clienteId){
+  const sel = document.getElementById('mg-cliente');
+  sel.innerHTML = '<option value="">Selecciona un cliente...</option>' +
+    [...CLIENTES].sort((a,b)=>a.nombre.localeCompare(b.nombre))
+    .map(c=>`<option value="${c.id}" ${c.id==clienteId?'selected':''}>${c.nombre}</option>`).join('');
+  document.getElementById('mg-fecha').value = TODAY;
+  document.getElementById('mg-hora').value = new Date().toTimeString().slice(0,5);
+  document.getElementById('mg-seguimiento').value = '';
+  document.getElementById('mg-notas').value = '';
+  document.getElementById('mg-contacto').value = '';
+  document.getElementById('mg-compromiso').value = '';
+  document.getElementById('modal-gestion').classList.add('open');
+}
+
+function guardarGestion(){
+  const clienteId = document.getElementById('mg-cliente').value;
+  if(!clienteId){ alert('Selecciona un cliente'); return; }
+  const g = {
+    id:'GES-'+String(GESTIONES.length+1).padStart(3,'0'),
+    clienteId,
+    fecha: document.getElementById('mg-fecha').value,
+    hora:  document.getElementById('mg-hora').value,
+    medio: document.getElementById('mg-medio').value,
+    contacto: document.getElementById('mg-contacto').value,
+    resultado: document.getElementById('mg-resultado').value,
+    seguimiento: document.getElementById('mg-seguimiento').value,
+    compromiso: parseFloat(document.getElementById('mg-compromiso').value)||0,
+    notas: document.getElementById('mg-notas').value,
+  };
+  GESTIONES.unshift(g);
+  localStorage.setItem('gestiones', JSON.stringify(GESTIONES));
+  cerrarModal('modal-gestion');
+  renderHoy(); renderGestiones();
+  showPage('gestiones', document.querySelectorAll('.nav-item')[2]);
+}
+
+// ══════════════════════════════════════════════════════
+// RENTA
+// ══════════════════════════════════════════════════════
+function renderRenta(){
+  const rentas = CLIENTES.filter(c=>c.es_renta);
+  let alertas = 0;
+  const rows = rentas.map(cl=>{
+    const rd = RENTA_DATA[cl.id] || {};
+    let dias = '—', alertaHtml = '', alertaCls = '';
+    if(rd.vencimiento){
+      const d = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
+      dias = d;
+      if(d<0){ alertaHtml='<span class="pill pill-red">Vencido</span>'; alertas++; }
+      else if(d<=3){ alertaHtml='<span class="pill pill-amber">Llamar hoy</span>'; alertas++; }
+      else{ alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`; }
+    }
+    return `<tr>
+      <td style="color:var(--muted)">${cl.id}</td>
+      <td><strong>${cl.nombre}</strong></td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'—'}</td>
+      <td style="text-align:right">${fmt(cl.saldo_total)}</td>
+      <td style="text-align:right">${rd.monto?fmt(rd.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
+      <td>${rd.vencimiento?fmtDate(rd.vencimiento):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
+      <td style="text-align:center">${dias}</td>
+      <td>${alertaHtml||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="abrirModalRenta('${cl.id}')">Actualizar</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('banner-renta').innerHTML = alertas > 0
+    ? `⚠️ ${alertas} cliente(s) de renta con pago próximo o vencido — revisar y llamar`
+    : '✓ Todos los clientes de renta al corriente';
+  document.getElementById('tbody-renta').innerHTML = rows ||
+    '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de renta</td></tr>';
+}
+
+function abrirModalRenta(id){
+  const cl = getCliente(id);
+  const rd = RENTA_DATA[id] || {};
+  document.getElementById('mr-titulo').textContent = 'Actualizar renta — ' + cl.nombre;
+  document.getElementById('mr-id').value = id;
+  document.getElementById('mr-monto').value = rd.monto || '';
+  document.getElementById('mr-vencimiento').value = rd.vencimiento || '';
+  document.getElementById('mr-notas').value = rd.notas || '';
+  document.getElementById('modal-renta').classList.add('open');
+}
+
+function guardarRenta(){
+  const id = document.getElementById('mr-id').value;
+  RENTA_DATA[id] = {
+    monto: parseFloat(document.getElementById('mr-monto').value)||0,
+    vencimiento: document.getElementById('mr-vencimiento').value,
+    notas: document.getElementById('mr-notas').value,
+  };
+  localStorage.setItem('renta_data', JSON.stringify(RENTA_DATA));
+  cerrarModal('modal-renta');
+  renderRenta();
+}
+
+// ══════════════════════════════════════════════════════
+// REPORTE
+// ══════════════════════════════════════════════════════
+function initReporte(){
+  const hoy = new Date();
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate()-hoy.getDay()+1);
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate()+6);
+  document.getElementById('rep-inicio').value = lunes.toISOString().split('T')[0];
+  document.getElementById('rep-fin').value = domingo.toISOString().split('T')[0];
+  const saldo = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0);
+  const gestSemana = GESTIONES.filter(g=>g.fecha>=document.getElementById('rep-inicio').value && g.fecha<=document.getElementById('rep-fin').value);
+  const compromisos = GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
+  document.getElementById('preview-reporte').innerHTML = `
+    <div class="kpi-grid" style="margin-bottom:14px">
+      <div class="kpi"><div class="kpi-label">Saldo total por cobrar</div><div class="kpi-value danger" style="font-size:18px">${fmt(saldo)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gestiones esta semana</div><div class="kpi-value" style="font-size:18px">${gestSemana.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Compromisos activos</div><div class="kpi-value warning" style="font-size:18px">${compromisos.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Clientes críticos 91+</div><div class="kpi-value danger" style="font-size:18px">${criticos.length}</div></div>
+    </div>
+    <p style="font-size:13px;color:var(--muted)">El PDF incluirá: resumen ejecutivo, antigüedad de saldos, clientes contactados, compromisos de pago y próximas acciones.</p>
+  `;
+}
+
+function generarReporte(){
+  const inicio = document.getElementById('rep-inicio').value;
+  const fin = document.getElementById('rep-fin').value;
+  const gestSemana = GESTIONES.filter(g=>g.fecha>=inicio&&g.fecha<=fin);
+  const contactados = [...new Set(gestSemana.map(g=>g.clienteId))].map(id=>getCliente(id));
+  const compromisos = GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
+  const saldo = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).slice(0,10);
+  const fmtD = d => new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Reporte de Cobranza</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:20px}
+    .header{background:#1F3864;color:#fff;padding:20px;margin:-20px -20px 20px;text-align:center}
+    .header h1{font-size:20px;margin:0 0 6px}
+    .header p{font-size:12px;margin:0;opacity:.8}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+    .kpi{background:#EBF3FB;border-radius:6px;padding:12px;text-align:center}
+    .kpi-v{font-size:22px;font-weight:bold;color:#1F3864}
+    .kpi-l{font-size:10px;color:#555;margin-top:2px}
+    h2{font-size:13px;background:#2E75B6;color:#fff;padding:7px 12px;margin:20px 0 8px;border-radius:4px}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px}
+    th{background:#EBF3FB;padding:6px 8px;text-align:left;border-bottom:1px solid #BDD7EE}
+    td{padding:5px 8px;border-bottom:1px solid #F0F4F8}
+    .red{color:#C0392B;font-weight:bold}
+    .footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <div class="header">
+    <h1>REPORTE SEMANAL DE COBRANZA</h1>
+    <p>Semana: ${fmtD(inicio)} — ${fmtD(fin)} &nbsp;|&nbsp; Generado: ${fmtD(TODAY)}</p>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-v">${fmt(saldo)}</div><div class="kpi-l">Saldo por cobrar</div></div>
+    <div class="kpi"><div class="kpi-v">${gestSemana.length}</div><div class="kpi-l">Gestiones realizadas</div></div>
+    <div class="kpi"><div class="kpi-v">${compromisos.length}</div><div class="kpi-l">Compromisos activos</div></div>
+    <div class="kpi"><div class="kpi-v">${criticos.length}</div><div class="kpi-l">Clientes críticos 91+</div></div>
+  </div>
+  <h2>CLIENTES CONTACTADOS ESTA SEMANA</h2>
+  <table><thead><tr><th>Cliente</th><th>Contactos</th><th>Último resultado</th><th>Próx. seguimiento</th></tr></thead><tbody>
+  ${contactados.slice(0,20).map(cl=>{
+    const gs = gestSemana.filter(g=>g.clienteId==cl.id);
+    const last = gs[0];
+    return `<tr><td>${cl.nombre}</td><td style="text-align:center">${gs.length}</td><td>${last?.resultado||'—'}</td><td>${last?.seguimiento?fmtD(last.seguimiento):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="4" style="text-align:center">Sin gestiones esta semana</td></tr>'}
+  </tbody></table>
+  <h2>CLIENTES CRÍTICOS — 91+ DÍAS</h2>
+  <table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo vencido</th></tr></thead><tbody>
+  ${criticos.map(c=>`<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.tel||'—'}</td><td class="red">${fmt(c.dias_91_mas)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center">Sin clientes críticos</td></tr>'}
+  </tbody></table>
+  <h2>COMPROMISOS DE PAGO ACTIVOS</h2>
+  <table><thead><tr><th>Cliente</th><th>Resultado</th><th>Fecha compromiso</th><th>Notas</th></tr></thead><tbody>
+  ${compromisos.slice(0,10).map(g=>{const cl=getCliente(g.clienteId);return`<tr><td>${cl.nombre}</td><td>${g.resultado}</td><td>${g.seguimiento?fmtD(g.seguimiento):'—'}</td><td>${g.notas||'—'}</td></tr>`}).join('')||'<tr><td colspan="4" style="text-align:center">Sin compromisos registrados</td></tr>'}
+  </tbody></table>
+  <div class="footer">Reporte generado automáticamente por el Sistema de Cobranza &nbsp;|&nbsp; Confidencial</div>
+  </body></html>`;
+
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`Reporte_Cobranza_${fin}.html`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════════════════
+// IMPORTAR AS
+// ══════════════════════════════════════════════════════
+function importarAS(input){
+  const file = input.files[0];
+  if(!file) return;
+  document.getElementById('import-status').innerHTML = '<p style="color:var(--amber)">⏳ Procesando...</p>';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result,{type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let parsed = [];
+      let current = null; let fmt = null;
+      const SKIP = new Set(['1','4','9']);
+      const DOC = /^MTY|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI/i;
+      const PLAZO = /\d+\s*D[I]?$|RENTA$|CREDITO$|CTDO$|EQ CR$/i;
+
+      for(const row of data){
+        const b=String(row[1]||'').trim(), c=String(row[2]||'').trim(), d=String(row[3]||'').trim();
+        const m=String(row[12]||'').trim(), n=String(row[13]||'').trim();
+        if(b && /^\d+$/.test(b) && !SKIP.has(b) && c && !DOC.test(c)){
+          if(current) parsed.push(current);
+          current={id:b,nombre:c,plazo:m||n||'--',tel:getCliente(b).tel||'',es_renta:/RENTA/i.test(m||n),
+            saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
+          fmt='f1'; continue;
+        }
+        if(b && /^\d+$/.test(b) && !SKIP.has(b) && d && !c){
+          if(current) parsed.push(current);
+          const pl=n||m||'--';
+          current={id:b,nombre:d,plazo:pl,tel:getCliente(b).tel||'',es_renta:/RENTA/i.test(pl),
+            saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
+          fmt='f2'; continue;
+        }
+        if(current && SKIP.has(b) && c){
+          const toN = v=>parseFloat(String(v).replace(/,/g,''))||0;
+          if(fmt==='f1') current.facturas.push({doc:c,fecha:String(row[5]||''),saldo:toN(row[7])+toN(row[8])+toN(row[10])+toN(row[13])+toN(row[14]),al_corriente:toN(row[7]),'1_30':toN(row[8]),'31_60':toN(row[10]),'61_90':toN(row[13]),'91_mas':toN(row[14])});
+          else current.facturas.push({doc:c,fecha:String(row[6]||''),saldo:toN(row[7])+toN(row[9])+toN(row[11])+toN(row[13])+toN(row[15]),al_corriente:toN(row[7]),'1_30':toN(row[9]),'31_60':toN(row[11]),'61_90':toN(row[13]),'91_mas':toN(row[15])});
+          continue;
+        }
+        if(current && !b && (c||d)){
+          const toN = v=>parseFloat(String(v).replace(/,/g,''))||0;
+          if(fmt==='f1'&&c){ current.saldo_total=toN(c); current.al_corriente=toN(row[7]); current.dias_1_30=toN(row[8]); current.dias_31_60=toN(row[10]); current.dias_61_90=toN(row[13]); current.dias_91_mas=toN(row[16]); parsed.push(current); current=null; }
+          else if(fmt==='f2'&&d){ current.saldo_total=toN(d); current.al_corriente=toN(row[8]); current.dias_1_30=toN(row[9]); current.dias_31_60=toN(row[11]); current.dias_61_90=toN(row[13]); current.dias_91_mas=toN(row[15]); parsed.push(current); current=null; }
+        }
+      }
+      if(current) parsed.push(current);
+      // Dedup
+      const seen={}; parsed.forEach(c=>{seen[c.id]=c}); parsed=Object.values(seen);
+      if(parsed.length>0){
+        CLIENTES = parsed;
+        const total = parsed.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+        document.getElementById('import-status').innerHTML = `<p style="color:var(--green)">✅ ${parsed.length} clientes importados · Saldo ${fmt(total)}</p>`;
+        document.getElementById('ultima-importacion').textContent = new Date().toLocaleDateString('es-MX') + ' — ' + parsed.length + ' clientes';
+        renderHoy();
+      } else {
+        document.getElementById('import-status').innerHTML = '<p style="color:var(--red)">❌ No se pudieron leer los datos. Verifica que sea el reporte correcto de SAE.</p>';
+      }
+    }catch(err){
+      document.getElementById('import-status').innerHTML = `<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function importarClientes(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result,{type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const mapa={};
+      for(const row of data){
+        const nombre=String(row[0]||'').trim().toUpperCase();
+        const tel=String(row[2]||'').trim();
+        if(nombre&&tel) mapa[nombre]=tel;
+      }
+      let actualizados=0;
+      CLIENTES = CLIENTES.map(cl=>{
+        const t = mapa[cl.nombre.toUpperCase()];
+        if(t&&!cl.tel){cl.tel=t; actualizados++;}
+        return cl;
+      });
+      document.getElementById('import-cli-status').innerHTML = `<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${actualizados} teléfonos actualizados</p>`;
+    }catch(err){
+      document.getElementById('import-cli-status').innerHTML = `<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function cerrarModal(id){ document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m) m.classList.remove('open')}));
+document.getElementById('topbar-fecha').textContent = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+
+// Init
+renderHoy();
+renderClientes();
+</script>
+</body></html>
