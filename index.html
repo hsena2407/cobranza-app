@@ -882,7 +882,7 @@ function importarAS(input){
       const maxRow = range.e.r + 1;
 
       const toN = v => parseFloat(String(v).replace(/,/g,''))||0;
-      const SKIP = new Set(['1','4','9']);
+      const SKIP = new Set(['1','4','9',1,4,9]);
       const DOC = /^MTY|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BCMR|^BNMX|^bnte|^spei/i;
       const PLAZO = /\d+\s*D[I]?$|RENTA$|CREDITO$|CTDO$|EQ CR$/i;
 
@@ -919,7 +919,7 @@ function importarAS(input){
         }
 
         // FMT1 invoice: B in {1,4,9}, C=doc
-        if(current && fmt==='f1' && SKIP.has(b) && c){
+        if(current && fmt==='f1' && (b==='1'||b==='4'||b==='9') && c && !DOC.test(c)){
           const alc=toN(cv('H',r)),d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
           current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,
             saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
@@ -927,7 +927,7 @@ function importarAS(input){
         }
 
         // FMT2 invoice: B in {1,4,9}, C=doc
-        if(current && fmt==='f2' && SKIP.has(b) && c){
+        if(current && fmt==='f2' && (b==='1'||b==='4'||b==='9') && c && !DOC.test(c)){
           const alc=toN(cv('H',r)),d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r)),d91=toN(cv('P',r));
           current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,
             saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
@@ -935,7 +935,7 @@ function importarAS(input){
         }
 
         // FMT1 subtotal: B empty, C=saldo
-        if(current && fmt==='f1' && !b && c){
+        if(current && fmt==='f1' && !b && cv('C',r)!==''){
           current.saldo_total=toN(c);
           current.al_corriente=toN(cv('H',r));
           current.dias_1_30=toN(cv('I',r));
@@ -946,7 +946,7 @@ function importarAS(input){
         }
 
         // FMT2 subtotal: B empty, D=saldo
-        if(current && fmt==='f2' && !b && d){
+        if(current && fmt==='f2' && !b && cv('D',r)!==''){
           current.saldo_total=toN(d);
           current.al_corriente=toN(cv('I',r));
           current.dias_1_30=toN(cv('J',r));
