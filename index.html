@@ -981,7 +981,15 @@ function generarReporte(){
   td{padding:5px 8px;border-bottom:1px solid #F0F4F8}
   .red{color:#C0392B;font-weight:bold}
   .footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
-  @media print{body{padding:0}}</style></head><body>
+  @media print{
+    @page{size:letter;margin:15mm 12mm}
+    body{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .hdr{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h2{-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-after:avoid}
+    table{page-break-inside:auto}
+    tr{page-break-inside:avoid}
+    a[href]:after{content:none!important}
+  }</style></head><body>
   <div class="hdr"><h1 style="font-size:20px;margin:0 0 6px">REPORTE SEMANAL DE COBRANZA</h1>
   <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
   <div class="kpis">
@@ -1008,8 +1016,10 @@ function generarReporte(){
   </tbody></table>
   <div class="footer">Reporte generado automáticamente — Confidencial</div>
   </body></html>`;
-  const blob=new Blob([html],{type:'text/html'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Reporte_${fin}.html`;a.click();
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload=()=>{win.focus();win.print();};
 }
 
 // ══════════════════════════════════════════════════════
@@ -1081,7 +1091,7 @@ function importarAS(input){
         // FMT1 invoice: alc=G or H, 1-30=I, 31-60=K, 61-90=N, 91+=O/P/Q
         if((fmt==='f1'||fmt==='fx')&&SKIP.has(b)&&c&&!DOC.test(c)){
           const alc=toN(cv('G',r))||toN(cv('H',r));
-          const d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('N',r));
+          const d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('M',r));
           const d91=toN(cv('O',r))||toN(cv('P',r))||toN(cv('Q',r));
           current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,
             saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
@@ -1106,7 +1116,7 @@ function importarAS(input){
             if(sc==='C'){
               current.al_corriente=toN(cv('G',r))||toN(cv('H',r));
               current.dias_1_30=toN(cv('I',r));current.dias_31_60=toN(cv('K',r));
-              current.dias_61_90=toN(cv('N',r));
+              current.dias_61_90=toN(cv('M',r));
               current.dias_91_mas=toN(cv('O',r))||toN(cv('P',r))||toN(cv('Q',r));
             } else {
               current.al_corriente=toN(cv('H',r))||toN(cv('I',r));
