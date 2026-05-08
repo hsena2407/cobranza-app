@@ -4,60 +4,54 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema de Cobranza</title>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-auth-compat.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-firestore-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 :root{
   --nav:#1F3864;--blue:#2E75B6;--white:#fff;--alt:#EBF3FB;--brd:#BDD7EE;
-  --red:#C0392B;--red-l:#FCE4D6;--green:#1E8449;--green-l:#D5F5E3;
-  --amber:#E67E22;--amber-l:#FEF9E7;--purple:#4A235A;--purple-l:#EAD8F7;
+  --red:#C0392B;--red-light:#FCE4D6;--green:#1E8449;--green-light:#D5F5E3;
+  --amber:#E67E22;--amber-light:#FEF9E7;--purple:#4A235A;--purple-light:#EAD8F7;
   --gray:#F4F6F8;--text:#1a1a1a;--muted:#6B7280
 }
 body{background:var(--gray);color:var(--text);min-height:100vh}
 
-/* LOGIN */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--nav)}
-.login-box{background:#fff;border-radius:12px;padding:36px;width:380px;max-width:95vw}
-.login-logo{text-align:center;margin-bottom:24px}
-.login-logo h1{font-size:22px;font-weight:600;color:var(--nav);margin-top:8px}
-.login-logo p{font-size:13px;color:var(--muted);margin-top:4px}
-.login-err{background:var(--red-l);color:var(--red);font-size:13px;padding:10px 12px;border-radius:7px;margin-bottom:14px;display:none}
-
-/* TOPBAR */
+/* ── TOPBAR ── */
 .topbar{background:var(--nav);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo{color:#fff;font-size:16px;font-weight:600;display:flex;align-items:center;gap:10px}
+.logo svg{width:22px;height:22px}
 .topbar-right{display:flex;align-items:center;gap:12px}
 .badge{background:var(--red);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
 .badge-renta{background:var(--purple)}
-.user-chip{background:rgba(255,255,255,0.15);color:#fff;font-size:12px;padding:4px 10px;border-radius:20px;display:flex;align-items:center;gap:6px}
-.admin-chip{background:#F39C12;color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
-.btn-logout{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer}
 
-/* LAYOUT */
+/* ── SIDEBAR NAV ── */
 .layout{display:flex;min-height:calc(100vh - 54px)}
 .sidebar{width:200px;background:#fff;border-right:1px solid var(--brd);padding:16px 0;flex-shrink:0;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
 .nav-item:hover{background:var(--alt);color:var(--text)}
 .nav-item.active{background:var(--alt);color:var(--blue);border-left-color:var(--blue)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
 .nav-section{font-size:10px;font-weight:600;color:var(--muted);padding:12px 18px 4px;letter-spacing:.8px;text-transform:uppercase}
-.nav-item.admin-only{display:none}
 
-/* MAIN */
+/* ── MAIN ── */
 .main{flex:1;padding:20px;overflow:auto;min-width:0}
 .page{display:none}.page.active{display:block}
 
-/* CARDS & TABLES */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
 .kpi{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:14px 16px}
 .kpi-label{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:500}
-.kpi-value{font-size:22px;font-weight:700}
-.kpi-value.danger{color:var(--red)}.kpi-value.success{color:var(--green)}.kpi-value.warning{color:var(--amber)}.kpi-value.purple{color:var(--purple)}
+.kpi-value{font-size:24px;font-weight:700;color:var(--text)}
+.kpi-value.danger{color:var(--red)}
+.kpi-value.success{color:var(--green)}
+.kpi-value.warning{color:var(--amber)}
+.kpi-value.purple{color:var(--purple)}
+
+/* ── CARD ── */
 .card{background:#fff;border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:16px}
 .card-header{padding:12px 16px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
-.card-title{font-size:14px;font-weight:600;color:var(--text)}
+.card-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+
+/* ── TABLE ── */
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--brd);background:var(--gray);white-space:nowrap}
@@ -65,314 +59,273 @@ td{padding:9px 12px;border-bottom:1px solid #F0F4F8;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#F8FAFC}
 
-/* PILLS & BUTTONS */
+/* ── PILLS ── */
 .pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px}
-.pill-red{background:var(--red-l);color:var(--red)}.pill-amber{background:var(--amber-l);color:#92400e}
-.pill-green{background:var(--green-l);color:var(--green)}.pill-blue{background:var(--alt);color:var(--blue)}
-.pill-purple{background:var(--purple-l);color:var(--purple)}.pill-gray{background:#F3F4F6;color:#6B7280}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--brd);background:#fff;cursor:pointer;color:var(--text)}
-.btn:hover{background:var(--alt)}
-.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-primary:hover{background:#1d5fa3}
-.btn svg,.btn-sm svg{width:14px;height:14px}
-.btn-sm{padding:4px 8px;font-size:11px}
+.pill-red{background:var(--red-light);color:var(--red)}
+.pill-amber{background:var(--amber-light);color:#92400e}
+.pill-green{background:var(--green-light);color:var(--green)}
+.pill-blue{background:var(--alt);color:var(--blue)}
+.pill-purple{background:var(--purple-light);color:var(--purple)}
+.pill-gray{background:#F3F4F6;color:#6B7280}
 
-/* FORMS */
-.search-row{display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
-.search-input{padding:8px 12px;border:1px solid var(--brd);border-radius:7px;font-size:13px;outline:none}
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--brd);background:#fff;cursor:pointer;color:var(--text);transition:all .15s}
+.btn:hover{background:var(--alt)}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-primary:hover{background:#1d5fa3}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn svg{width:14px;height:14px}
+
+/* ── SEARCH ── */
+.search-row{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+.search-input{flex:1;max-width:320px;padding:8px 12px;border:1px solid var(--brd);border-radius:7px;font-size:13px;outline:none}
 .search-input:focus{border-color:var(--blue)}
+
+/* ── MODAL ── */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
-.modal{background:#fff;border-radius:12px;width:500px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
-.modal-header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1}
+.modal{background:#fff;border-radius:12px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center}
 .modal-title{font-size:15px;font-weight:600}
 .modal-body{padding:20px}
-.modal-footer{padding:12px 20px;border-top:1px solid var(--brd);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:#fff}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--brd);display:flex;justify-content:flex-end;gap:8px}
 .form-group{margin-bottom:14px}
 .form-label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
 .form-control{width:100%;padding:8px 11px;border:1px solid var(--brd);border-radius:7px;font-size:13px;outline:none}
 .form-control:focus{border-color:var(--blue)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
-/* CLIENT DETAIL */
-.detail-panel{display:none}.detail-panel.open{display:block}
+/* ── CLIENT DETAIL PANEL ── */
+.detail-panel{display:none}
+.detail-panel.open{display:block}
 .detail-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:16px;padding:0;background:none;border:none}
 .detail-back:hover{color:var(--text)}
-.detail-header{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.detail-header{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
 .avatar{width:48px;height:48px;border-radius:50%;background:var(--alt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
-.avatar.renta{background:var(--purple-l);color:var(--purple)}
-.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.avatar.renta{background:var(--purple-light);color:var(--purple)}
+.detail-info h2{font-size:15px;font-weight:600;margin-bottom:4px}
+.detail-meta{display:flex;gap:10px;flex-wrap:wrap}
+.detail-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
 .info-box{background:#fff;border:1px solid var(--brd);border-radius:8px;padding:10px 12px}
 .info-box-label{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:500;text-transform:uppercase}
 .info-box-value{font-size:14px;font-weight:600}
 
-/* IMPORT */
-.import-zone{border:2px dashed var(--brd);border-radius:10px;padding:40px;text-align:center;cursor:pointer}
+/* ── IMPORT ZONE ── */
+.import-zone{border:2px dashed var(--brd);border-radius:10px;padding:40px;text-align:center;cursor:pointer;transition:.15s}
 .import-zone:hover{border-color:var(--blue);background:var(--alt)}
 .import-zone input{display:none}
+.import-icon{width:40px;height:40px;margin:0 auto 12px;color:var(--muted)}
+.import-history{margin-top:16px}
 
-/* SPINNER */
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* ── REPORT ── */
+.report-card{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:20px;margin-bottom:14px}
+.report-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 
-/* LOADING */
-.loading-overlay{position:fixed;inset:0;background:rgba(31,56,100,.85);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
-.loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px}
+/* ── ALERT BANNER ── */
+.alert-banner{border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;font-weight:500}
+.alert-danger{background:var(--red-light);color:var(--red);border:1px solid #f5c6c6}
+.alert-warning{background:var(--amber-light);color:#92400e;border:1px solid #fcd297}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #a7e3be}
+.alert-purple{background:var(--purple-light);color:var(--purple);border:1px solid #d5aee8}
 
-@media(max-width:768px){.sidebar{display:none}.form-row{grid-template-columns:1fr}}
+/* ── PHONE LINK ── */
+a.tel{color:var(--blue);text-decoration:none;font-weight:500}
+a.tel:hover{text-decoration:underline}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
-<div class="loading-overlay" id="loading">
-  <div class="loading-spinner"></div>
-  <p style="font-size:14px">Cargando sistema...</p>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Sistema de Cobranza
+  </div>
+  <div class="topbar-right">
+    <span class="badge" id="badge-hoy">0 hoy</span>
+    <span class="badge badge-renta" id="badge-renta">0 renta</span>
+    <span style="color:#aaa;font-size:12px" id="topbar-fecha"></span>
+  </div>
 </div>
 
-<!-- LOGIN PAGE -->
-<div id="login-page" style="display:none">
-  <div class="login-wrap">
-    <div class="login-box">
-      <div class="login-logo">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1F3864" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        <h1>Sistema de Cobranza</h1>
-        <p>Inicia sesión para continuar</p>
-      </div>
-      <div class="login-err" id="login-err"></div>
-      <div class="form-group">
-        <label class="form-label">Correo electrónico</label>
-        <input type="email" class="form-control" id="login-email" placeholder="correo@empresa.com" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Contraseña</label>
-        <input type="password" class="form-control" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()" id="login-btn">
-        Iniciar sesión
+<div class="layout">
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-section">Principal</div>
+  <div class="nav-item active" onclick="showPage('hoy',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    Alertas del día
+  </div>
+  <div class="nav-item" onclick="showPage('clientes',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Clientes
+  </div>
+  <div class="nav-item" onclick="showPage('gestiones',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+    Gestiones
+  </div>
+  <div class="nav-section">Renta</div>
+  <div class="nav-item" onclick="showPage('renta',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Clientes renta
+  </div>
+  <div class="nav-section">Reportes</div>
+  <div class="nav-item" onclick="showPage('reporte',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Reporte semanal
+  </div>
+  <div class="nav-section">Datos</div>
+  <div class="nav-item" onclick="showPage('importar',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Importar AS
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- ══ PAGE: ALERTAS DEL DÍA ══ -->
+<div class="page active" id="page-hoy">
+  <div class="kpi-grid" id="kpis-hoy"></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Llamar hoy
+      </span>
+      <button class="btn btn-primary" onclick="abrirModalGestion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Registrar llamada
       </button>
     </div>
+    <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Estatus</th><th>Último resultado</th><th></th></tr></thead><tbody id="tbody-hoy"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title" style="color:var(--red)">Seguimientos vencidos</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Vencido desde</th><th>Último resultado</th><th></th></tr></thead><tbody id="tbody-vencidos"></tbody></table></div>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="app" style="display:none">
-  <div class="topbar">
-    <div class="logo">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-      Sistema de Cobranza
+<!-- ══ PAGE: CLIENTES ══ -->
+<div class="page" id="page-clientes">
+  <div id="lista-clientes">
+    <div class="search-row">
+      <input class="search-input" placeholder="Buscar por nombre, ID o teléfono..." oninput="filtrarClientes(this.value)" id="q-clientes">
+      <select class="search-input" style="max-width:160px" onchange="filtrarClientes(document.getElementById('q-clientes').value)" id="filtro-estatus">
+        <option value="">Todos</option>
+        <option value="critico">Crítico 91+</option>
+        <option value="vencido">Vencido</option>
+        <option value="corriente">Al corriente</option>
+        <option value="renta">Renta</option>
+      </select>
     </div>
-    <div class="topbar-right">
-      <span class="badge" id="badge-hoy">0 hoy</span>
-      <span class="badge badge-renta" id="badge-renta">0 renta</span>
-      <div class="user-chip">
-        <span id="user-name-chip">—</span>
-        <span class="admin-chip" id="admin-chip" style="display:none">ADMIN</span>
-      </div>
-      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    <div class="card">
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Antigüedad</th><th>Tipo</th><th></th></tr></thead><tbody id="tbody-clientes"></tbody></table></div>
     </div>
   </div>
+  <div class="detail-panel" id="detalle-cliente"></div>
+</div>
 
-  <div class="layout">
-    <div class="sidebar">
-      <div class="nav-section">Principal</div>
-      <div class="nav-item active" onclick="showPage('hoy',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        Alertas del día
-      </div>
-      <div class="nav-item" onclick="showPage('clientes',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clientes
-      </div>
-      <div class="nav-item" onclick="showPage('gestiones',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
-        Gestiones
-      </div>
-      <div class="nav-section">Renta</div>
-      <div class="nav-item" onclick="showPage('renta',this)">
+<!-- ══ PAGE: GESTIONES ══ -->
+<div class="page" id="page-gestiones">
+  <div class="search-row">
+    <input class="search-input" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
+    <button class="btn btn-primary" onclick="abrirModalGestion()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nueva gestión
+    </button>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Próx. seguimiento</th><th>Notas</th><th></th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: RENTA ══ -->
+<div class="page" id="page-renta">
+  <div class="alert-purple" id="banner-renta" style="margin-bottom:14px"></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" style="color:var(--purple)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        Clientes renta
-      </div>
-      <div class="nav-section admin-only">Reportes</div>
-      <div class="nav-item admin-only" onclick="showPage('cobranza',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        Cobranza
-      </div>
-      <div class="nav-item admin-only" onclick="showPage('reporte',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Reporte semanal
-      </div>
-      <div class="nav-section admin-only">Admin</div>
-      <div class="nav-item admin-only" onclick="showPage('usuarios',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Usuarios
-      </div>
-      <div class="nav-section">Datos</div>
-      <div class="nav-item admin-only" onclick="showPage('importar',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Importar AS
-      </div>
+        Clientes de renta — seguimiento mensual
+      </span>
     </div>
-
-    <div class="main">
-
-      <!-- HOY -->
-      <div class="page active" id="page-hoy">
-        <div class="kpi-grid" id="kpis-hoy">
-          <div class="kpi"><div class="kpi-label">Cargando...</div><div class="kpi-value" style="font-size:14px;color:var(--muted)">—</div></div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Llamar hoy</span>
-            <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Registrar llamada
-            </button>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Estatus</th><th>Último resultado</th><th>Gestor</th><th></th></tr></thead><tbody id="tbody-hoy"></tbody></table></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title" style="color:var(--red)">Seguimientos vencidos</span></div>
-          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Vencido desde</th><th>Último resultado</th><th>Gestor</th><th></th></tr></thead><tbody id="tbody-vencidos"></tbody></table></div>
-        </div>
-      </div>
-
-      <!-- CLIENTES -->
-      <div class="page" id="page-clientes">
-        <div id="lista-clientes">
-          <div class="search-row">
-            <input class="search-input" style="flex:1;max-width:300px" placeholder="Buscar nombre, ID o teléfono..." oninput="filtrarClientes(this.value)" id="q-clientes">
-            <select class="search-input" style="max-width:150px" onchange="filtrarClientes(document.getElementById('q-clientes').value)" id="filtro-est">
-              <option value="">Todos</option>
-              <option value="critico">Crítico 91+</option>
-              <option value="vencido">Vencido</option>
-              <option value="corriente">Al corriente</option>
-              <option value="renta">Renta</option>
-            </select>
-          </div>
-          <div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Antigüedad</th><th>Tipo</th><th></th></tr></thead><tbody id="tbody-clientes"></tbody></table></div></div>
-        <div id="resumen-filtro" style="display:none;background:#fff;border:1px solid var(--brd);border-radius:10px;padding:12px 16px;margin-top:8px;display:flex;gap:24px;flex-wrap:wrap">
-          <div style="font-size:13px;color:var(--muted)">Clientes mostrados: <strong id="rf-count" style="color:var(--text)">0</strong></div>
-          <div style="font-size:13px;color:var(--muted)">Saldo total: <strong id="rf-saldo" style="color:var(--red)">$0</strong></div>
-          <div style="font-size:13px;color:var(--muted)">Vencido: <strong id="rf-vencido" style="color:var(--red)">$0</strong></div>
-          <div style="font-size:13px;color:var(--muted)">Al corriente: <strong id="rf-corriente" style="color:var(--green)">$0</strong></div>
-        </div>
-        <div class="detail-panel" id="detalle-cliente"></div>
-      </div>
-
-      <!-- GESTIONES -->
-      <div class="page" id="page-gestiones">
-        <div class="search-row">
-          <input class="search-input" style="flex:1;max-width:300px" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
-          <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nueva gestión
-          </button>
-        </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div></div>
-      </div>
-
-      <!-- RENTA -->
-      <div class="page" id="page-renta">
-        <div style="background:var(--purple-l);border:1px solid #d5aee8;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;font-weight:500;color:var(--purple)" id="banner-renta"></div>
-        <div class="card">
-          <div class="card-header"><span class="card-title" style="color:var(--purple)">Clientes de renta — seguimiento mensual</span></div>
-          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
-        </div>
-      </div>
-
-      <!-- COBRANZA (admin only) -->
-      <div class="page" id="page-cobranza">
-        <div class="card" style="padding:20px;margin-bottom:14px">
-          <div style="font-size:14px;font-weight:600;margin-bottom:14px">Consulta de cobranza por período</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
-            <div class="form-group" style="margin:0"><label class="form-label">Fecha inicio</label><input type="date" class="form-control" id="cob-inicio" style="width:155px"></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Fecha fin</label><input type="date" class="form-control" id="cob-fin" style="width:155px"></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Gestor</label><select class="form-control" id="cob-gestor" style="width:200px"><option value="">Todos los gestores</option></select></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Resultado</label><select class="form-control" id="cob-resultado" style="width:180px">
-              <option value="">Todos</option>
-              <option value="pago">Compromisos de pago</option>
-              <option value="pagado">Pagado confirmado</option>
-              <option value="no_contesto">No contestó</option>
-              <option value="todas">Todas las gestiones</option>
-            </select></div>
-            <div style="display:flex;gap:6px;align-items:flex-end">
-              <button class="btn btn-sm" onclick="setRangoHoy()">Hoy</button>
-              <button class="btn btn-sm" onclick="setRangoSemana()">Esta semana</button>
-              <button class="btn btn-sm" onclick="setRangoMes()">Este mes</button>
-              <button class="btn btn-primary btn-sm" onclick="consultarCobranza()">Consultar</button>
-            </div>
-          </div>
-          <div id="cob-kpis" class="kpi-grid" style="margin-bottom:0"></div>
-        </div>
-        <div class="card" id="cob-tabla-card" style="display:none">
-          <div class="card-header">
-            <span class="card-title" id="cob-tabla-titulo">Compromisos de pago</span>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Fecha gestión</th><th>Resultado</th><th>Compromiso ($)</th><th>Fecha compromiso</th><th>Gestor</th><th>Notas</th></tr></thead><tbody id="tbody-cobranza"></tbody></table></div>
-        </div>
-      </div>
-
-      <!-- REPORTE (admin only) -->
-      <div class="page" id="page-reporte">
-        <div class="card" style="padding:20px">
-          <div style="font-size:14px;font-weight:600;margin-bottom:16px">Reporte semanal de cobranza</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-            <div class="form-group" style="margin:0"><label class="form-label">Semana inicio</label><input type="date" class="form-control" id="rep-inicio" style="width:160px"></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Semana fin</label><input type="date" class="form-control" id="rep-fin" style="width:160px"></div>
-            <div style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="generarReporte()">Generar y descargar</button></div>
-          </div>
-          <div id="preview-reporte" style="background:var(--gray);border-radius:8px;padding:16px"></div>
-        </div>
-      </div>
-
-      <!-- USUARIOS (admin only) -->
-      <div class="page" id="page-usuarios">
-        <div class="card" style="padding:20px">
-          <div style="font-size:14px;font-weight:600;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
-            Gestión de usuarios
-            <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario()">+ Agregar usuario</button>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>Email</th><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead><tbody id="tbody-usuarios"></tbody></table></div>
-        </div>
-      </div>
-
-      <!-- IMPORTAR (admin only) -->
-      <div class="page" id="page-importar">
-        <div class="card" style="padding:24px">
-          <div style="font-size:14px;font-weight:600;margin-bottom:16px">Importar Antigüedad de Saldos desde SAE</div>
-          <div class="import-zone" onclick="document.getElementById('file-as').click()">
-            <input type="file" id="file-as" accept=".xlsx,.xls" onchange="importarAS(this)">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5" style="margin:0 auto 12px;display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona tu archivo AS (.xlsx)</p>
-            <p style="font-size:12px;color:var(--muted)">Exportado desde SAE 9.0</p>
-          </div>
-          <div id="import-status" style="margin-top:14px"></div>
-          <div style="background:var(--alt);border-radius:8px;padding:12px;margin-top:14px;font-size:13px">
-            <strong>Última importación:</strong> <span id="ultima-importacion">Sin importaciones</span>
-          </div>
-        </div>
-        <div class="card" style="padding:20px">
-          <div style="font-size:14px;font-weight:600;margin-bottom:14px">Importar directorio de clientes (teléfonos)</div>
-          <div class="import-zone" onclick="document.getElementById('file-cli').click()">
-            <input type="file" id="file-cli" accept=".xlsx,.xls" onchange="importarClientes(this)">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5" style="margin:0 auto 12px;display:block"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona archivo de clientes activos (.xlsx)</p>
-            <p style="font-size:12px;color:var(--muted)">Col A = Nombre · Col C = Teléfono</p>
-          </div>
-          <div id="import-cli-status" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-    </div>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
   </div>
 </div>
 
-<!-- MODAL GESTIÓN -->
+<!-- ══ PAGE: REPORTE ══ -->
+<div class="page" id="page-reporte">
+  <div class="report-card">
+    <div class="report-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Reporte semanal de cobranza
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Semana inicio</label>
+        <input type="date" class="form-control" id="rep-inicio" style="width:160px">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Semana fin</label>
+        <input type="date" class="form-control" id="rep-fin" style="width:160px">
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-primary" onclick="generarReporte()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Generar y descargar PDF
+        </button>
+      </div>
+    </div>
+    <div id="preview-reporte" style="background:var(--gray);border-radius:8px;padding:16px;min-height:100px"></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: IMPORTAR ══ -->
+<div class="page" id="page-importar">
+  <div class="card" style="padding:24px">
+    <div class="report-title">Importar Antigüedad de Saldos desde SAE</div>
+    <div class="import-zone" onclick="document.getElementById('file-as').click()">
+      <input type="file" id="file-as" accept=".xlsx,.xls" onchange="importarAS(this)">
+      <svg class="import-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona tu archivo AS (.xlsx)</p>
+      <p style="font-size:12px;color:var(--muted)">Exportado desde SAE 9.0 — Antigüedad de saldos</p>
+    </div>
+    <div id="import-status" style="margin-top:16px"></div>
+    <div style="background:var(--alt);border-radius:8px;padding:14px;margin-top:16px;font-size:13px">
+      <strong>Última importación:</strong> <span id="ultima-importacion">07/05/2026 — 152 clientes, 619 documentos</span>
+    </div>
+  </div>
+  <div class="card" style="padding:20px">
+    <div class="report-title">Importar directorio de clientes (teléfonos)</div>
+    <div class="import-zone" onclick="document.getElementById('file-cli').click()">
+      <input type="file" id="file-cli" accept=".xlsx,.xls" onchange="importarClientes(this)">
+      <svg class="import-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona el archivo de clientes activos (.xlsx)</p>
+      <p style="font-size:12px;color:var(--muted)">Col A = Nombre, Col C = Teléfono</p>
+    </div>
+    <div id="import-cli-status" style="margin-top:12px"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ══ MODAL: NUEVA GESTIÓN ══ -->
 <div class="modal-bg" id="modal-gestion">
 <div class="modal">
   <div class="modal-header">
     <span class="modal-title">Registrar llamada / contacto</span>
-    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-gestion')">✕</button>
+    <button class="btn" style="padding:4px 8px;border:none" onclick="cerrarModal('modal-gestion')">✕</button>
   </div>
   <div class="modal-body">
     <div class="form-group">
@@ -380,49 +333,80 @@ tr:hover td{background:#F8FAFC}
       <select class="form-control" id="mg-cliente"><option value="">Selecciona...</option></select>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-control" id="mg-fecha"></div>
-      <div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="mg-hora"></div>
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input type="date" class="form-control" id="mg-fecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora</label>
+        <input type="time" class="form-control" id="mg-hora">
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Medio</label>
-        <select class="form-control" id="mg-medio"><option>Llamada</option><option>WhatsApp</option><option>Email</option><option>Visita</option><option>Buzón de voz</option></select>
+        <select class="form-control" id="mg-medio">
+          <option>Llamada</option><option>WhatsApp</option><option>Email</option>
+          <option>Visita</option><option>Buzón de voz</option>
+        </select>
       </div>
-      <div class="form-group"><label class="form-label">Contacto que atendió</label><input type="text" class="form-control" id="mg-contacto" placeholder="Nombre"></div>
+      <div class="form-group">
+        <label class="form-label">Contacto que atendió</label>
+        <input type="text" class="form-control" id="mg-contacto" placeholder="Nombre">
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Resultado</label>
       <select class="form-control" id="mg-resultado">
-        <option>Prometió pagar</option><option>Pagará hoy</option><option>No contestó</option>
-        <option>Número equivocado</option><option>Negó deuda</option><option>Solicitó espera</option>
+        <option>Prometió pagar</option><option>Pagará hoy</option>
+        <option>No contestó</option><option>Número equivocado</option>
+        <option>Negó deuda</option><option>Solicitó espera</option>
         <option>Pagado confirmado</option><option>Otro</option>
       </select>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Próximo seguimiento</label><input type="date" class="form-control" id="mg-seguimiento"></div>
-      <div class="form-group"><label class="form-label">Compromiso de pago ($)</label><input type="number" class="form-control" id="mg-compromiso" placeholder="0"></div>
+      <div class="form-group">
+        <label class="form-label">Próximo seguimiento</label>
+        <input type="date" class="form-control" id="mg-seguimiento">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Compromiso de pago ($)</label>
+        <input type="number" class="form-control" id="mg-compromiso" placeholder="0">
+      </div>
     </div>
-    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-control" id="mg-notas" rows="3" placeholder="Observaciones..."></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-control" id="mg-notas" rows="3" placeholder="Observaciones..."></textarea>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-gestion')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarGestion()" id="btn-guardar-gestion">Guardar</button>
+    <button class="btn btn-primary" onclick="guardarGestion()">Guardar</button>
   </div>
 </div>
 </div>
 
-<!-- MODAL RENTA -->
+<!-- ══ MODAL: EDITAR RENTA ══ -->
 <div class="modal-bg" id="modal-renta">
 <div class="modal">
   <div class="modal-header">
     <span class="modal-title" id="mr-titulo">Actualizar renta</span>
-    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-renta')">✕</button>
+    <button class="btn" style="padding:4px 8px;border:none" onclick="cerrarModal('modal-renta')">✕</button>
   </div>
   <div class="modal-body">
     <input type="hidden" id="mr-id">
-    <div class="form-group"><label class="form-label">Monto mensual de renta ($)</label><input type="number" class="form-control" id="mr-monto" placeholder="0.00"></div>
-    <div class="form-group"><label class="form-label">Próximo vencimiento</label><input type="date" class="form-control" id="mr-vencimiento"></div>
-    <div class="form-group"><label class="form-label">Notas del contrato</label><textarea class="form-control" id="mr-notas" rows="2" placeholder="Ej: paga el día 1 de cada mes..."></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Monto mensual de renta ($)</label>
+      <input type="number" class="form-control" id="mr-monto" placeholder="0.00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Próximo vencimiento</label>
+      <input type="date" class="form-control" id="mr-vencimiento">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas del contrato</label>
+      <textarea class="form-control" id="mr-notas" rows="2" placeholder="Ej: paga el día 1 de cada mes..."></textarea>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-renta')">Cancelar</button>
@@ -431,72 +415,20 @@ tr:hover td{background:#F8FAFC}
 </div>
 </div>
 
-<!-- MODAL USUARIO -->
-<div class="modal-bg" id="modal-usuario">
-<div class="modal">
-  <div class="modal-header">
-    <span class="modal-title">Agregar usuario</span>
-    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-usuario')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div style="background:var(--amber-l);border-radius:8px;padding:12px;font-size:13px;margin-bottom:14px;color:#92400e">
-      El usuario recibirá las credenciales que definas aquí. Podrá cambiar su contraseña después.
-    </div>
-    <div class="form-group"><label class="form-label">Nombre completo</label><input type="text" class="form-control" id="nu-nombre" placeholder="Juan García"></div>
-    <div class="form-group"><label class="form-label">Correo electrónico</label><input type="email" class="form-control" id="nu-email" placeholder="juan@empresa.com"></div>
-    <div class="form-group"><label class="form-label">Contraseña inicial</label><input type="password" class="form-control" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
-    <div class="form-group">
-      <label class="form-label">Rol</label>
-      <select class="form-control" id="nu-rol">
-        <option value="gestor">Gestor (solo registra sus llamadas)</option>
-        <option value="admin">Administrador (acceso completo)</option>
-      </select>
-    </div>
-    <div class="login-err" id="nu-err" style="display:none"></div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn" onclick="cerrarModal('modal-usuario')">Cancelar</button>
-    <button class="btn btn-primary" onclick="crearUsuario()" id="btn-crear-usuario">Crear usuario</button>
-  </div>
-</div>
-</div>
-
 <script>
 // ══════════════════════════════════════════════════════
-// FIREBASE INIT
+// DATA
 // ══════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyBx2vvFnYjZBYs0QT4GZJTYFg7JDrijVxI",
-  authDomain: "cobranza-app-7e74c.firebaseapp.com",
-  projectId: "cobranza-app-7e74c",
-  storageBucket: "cobranza-app-7e74c.firebasestorage.app",
-  messagingSenderId: "55649443257",
-  appId: "1:55649443257:web:a2a2e4638d6c40d3132a68"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// ══════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════
-let CURRENT_USER = null;
-let IS_ADMIN = false;
-let CLIENTES = [];
-let GESTIONES = [];
-let RENTA_DATA = {};
-let UNSUBSCRIBE_GESTIONES = null;
+let CLIENTES = [{"id": "87", "nombre": "COMPLEX QUIMICA", "plazo": "30 D", "tel": "81 8124 0400", "es_renta": false, "saldo_total": 13804, "al_corriente": 5510, "dias_1_30": 8294, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "174", "nombre": "SALINAS Y SALINAS ABOGADOS", "plazo": "15 D", "tel": "(081) 8333-7069", "es_renta": false, "saldo_total": 1740, "al_corriente": 1740, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "180", "nombre": "LOBEIRA ASESORES AGENTE DE SEGUROS Y DE FIANZAS", "plazo": "15 D", "tel": "81834-74060", "es_renta": false, "saldo_total": 10416.8, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 10416.8, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "267", "nombre": "BURCIAGA MENDOZA ASESORES CONTABLES", "plazo": "15 D", "tel": "(081) 8372-7776", "es_renta": false, "saldo_total": 5278, "al_corriente": 0, "dias_1_30": 5278, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "294", "nombre": "TRANSPORTES URBANOS DEL SUR", "plazo": "15 D", "tel": "(081) 8317-8274", "es_renta": false, "saldo_total": 6728, "al_corriente": 0, "dias_1_30": 6728, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "369", "nombre": "MAXIMA DISTINCION", "plazo": "RENTA", "tel": "81 8335-0177", "es_renta": true, "saldo_total": 0, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "410", "nombre": "SANILOCK COMERCIAL", "plazo": "RENTA", "tel": "81 1050 2466", "es_renta": true, "saldo_total": 53393, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 53393, "dias_91_mas": 0}, {"id": "516", "nombre": "RUIZ VELASCO ABOGADOS", "plazo": "RENTA", "tel": "81 2724 7727", "es_renta": true, "saldo_total": 8195.62, "al_corriente": 8195.62, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "711", "nombre": "NOVOCAST", "plazo": "RENTA", "tel": "8288-5800", "es_renta": true, "saldo_total": 0, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "820", "nombre": "BROCHAS Y PRODUCTOS", "plazo": "15 D", "tel": "81 8124 3050", "es_renta": false, "saldo_total": 11600, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 11600}, {"id": "866", "nombre": "INSTITUTO MONTE BLANCO", "plazo": "RENTA", "tel": "(081) 8315-4036", "es_renta": true, "saldo_total": 21158.4, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 21158.4, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "919", "nombre": "FOCOMSA", "plazo": "30 D", "tel": "818331 3500", "es_renta": false, "saldo_total": 17632, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 17632, "dias_91_mas": 0}, {"id": "937", "nombre": "DMP MONTERREY", "plazo": "RENTA", "tel": "(0181) 8156-7800", "es_renta": true, "saldo_total": 18216.33, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 18216.33, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "957", "nombre": "ECI REGO", "plazo": "RENTA", "tel": "818032 5250", "es_renta": true, "saldo_total": 2946.17, "al_corriente": 2946.17, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1041", "nombre": "GAMA ETIQUETAS", "plazo": "45 D", "tel": "81 1990 7838", "es_renta": false, "saldo_total": 138314.71, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 138314.71}, {"id": "1073", "nombre": "PLUMAS Y CERAMICA DE MONTERREY", "plazo": "30 D", "tel": "81 8190 2783", "es_renta": false, "saldo_total": 178524, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 178524, "dias_91_mas": 0}, {"id": "1120", "nombre": "CHAPA INDUSTRIAS", "plazo": "30 D", "tel": "81 8000 0800", "es_renta": false, "saldo_total": 29116, "al_corriente": 22620, "dias_1_30": 6496, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1611", "nombre": "VIRTUAL NETWORKS", "plazo": "15 D", "tel": "8117383618", "es_renta": false, "saldo_total": 42489.64, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 42489.64}, {"id": "1663", "nombre": "SENA CASTILLO ASESORES", "plazo": "15 D", "tel": "8112770277", "es_renta": false, "saldo_total": 51096.04, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 51096.04}, {"id": "1712", "nombre": "SDB ADMINISTRACION", "plazo": "RENTA", "tel": "81 1050 2466", "es_renta": true, "saldo_total": 72688.64, "al_corriente": 0, "dias_1_30": 72688.64, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1830", "nombre": "TECONNEX MEXICO", "plazo": "15 D", "tel": "8114684013", "es_renta": false, "saldo_total": 31731.8, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 31731.8, "dias_91_mas": 0}, {"id": "1897", "nombre": "CHYLEX", "plazo": "30 D", "tel": "81236045", "es_renta": false, "saldo_total": 23066.6, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 23066.6, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "1952", "nombre": "SALVADOR FURUKAWA LLAMAS", "plazo": "30 D", "tel": "81 8031 5842", "es_renta": false, "saldo_total": 78820, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 78820, "dias_91_mas": 0}, {"id": "2030", "nombre": "CONNOR METAL STAMPING DE MEXICO", "plazo": "RENTA", "tel": "8153500669", "es_renta": true, "saldo_total": 147149.48, "al_corriente": 0, "dias_1_30": 147149.48, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2046", "nombre": "JORGE ALBERTO GONZALEZ GARCIA", "plazo": "30 D", "tel": "81 82813727", "es_renta": false, "saldo_total": 25868, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 25868, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2071", "nombre": "ELVIRA EVELIA ARRAMBIDE CANTU", "plazo": "RENTA", "tel": "81 1080 2792", "es_renta": true, "saldo_total": 12221.76, "al_corriente": 0, "dias_1_30": 12221.76, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2131", "nombre": "ROMULO CONTRERAS MARTINEZ", "plazo": "30 D", "tel": "81 1199 5628", "es_renta": false, "saldo_total": 22573.6, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 22573.6, "dias_91_mas": 0}, {"id": "2141", "nombre": "UNIFORM COLOR DE MEXICO", "plazo": "RENTA", "tel": "818-262-5266", "es_renta": true, "saldo_total": 10344.52, "al_corriente": 10344.52, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2181", "nombre": "SENDICA EDUCATION", "plazo": "RENTA", "tel": "81 1177 5612", "es_renta": true, "saldo_total": 300449.28, "al_corriente": 0, "dias_1_30": 300449.28, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2194", "nombre": "GRAFICA NUMERAL", "plazo": "30 D", "tel": "81 1577 8566", "es_renta": false, "saldo_total": 44892, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 44892, "dias_91_mas": 0}, {"id": "2202", "nombre": "MOTORAD DISTRIBUTION DE MEXICO", "plazo": "RENTA", "tel": "81 8075 7362", "es_renta": true, "saldo_total": 76172.42, "al_corriente": 0, "dias_1_30": 76172.42, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2206", "nombre": "MOTORAD DE MEXICO", "plazo": "RENTA", "tel": "81 8075 7362", "es_renta": true, "saldo_total": 61510.35, "al_corriente": 0, "dias_1_30": 61510.35, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2237", "nombre": "GRUPO 3 RAMOS", "plazo": "RENTA", "tel": "", "es_renta": true, "saldo_total": 100452.29, "al_corriente": 0, "dias_1_30": 100452.29, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2262", "nombre": "ROMULO ALBERTO CONTRERAS GARCIA", "plazo": "30 D", "tel": "81 8091 5525", "es_renta": false, "saldo_total": 89544.4, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 89544.4}, {"id": "2273", "nombre": "BASES DINAMICAS DE VALORES", "plazo": "RENTA", "tel": "", "es_renta": true, "saldo_total": 207992.64, "al_corriente": 0, "dias_1_30": 207992.64, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2277", "nombre": "TANIA ESTEFANY TENEYUQUE GUTIERREZ", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 178891.44, "al_corriente": 178891.44, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2358", "nombre": "OSCAR VALDEZ CORTES", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 96234.94, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 96234.94}, {"id": "2434", "nombre": "BALTIMORE AIRCOIL COMPANY DE MEXICO", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 401241.71, "al_corriente": 0, "dias_1_30": 401241.71, "dias_31_60": 0, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2494", "nombre": "RCI HUDSON DE MEXICO", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 188407.2, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 188407.2, "dias_61_90": 0, "dias_91_mas": 0}, {"id": "2538", "nombre": "JUDITH GONZALEZ GONZALEZ", "plazo": "30 D", "tel": "", "es_renta": false, "saldo_total": 63800, "al_corriente": 0, "dias_1_30": 0, "dias_31_60": 0, "dias_61_90": 63800, "dias_91_mas": 0}];
+let GESTIONES = JSON.parse(localStorage.getItem('gestiones')||'[]');
+let RENTA_DATA = JSON.parse(localStorage.getItem('renta_data')||'{}');
 
 const TODAY = new Date().toISOString().split('T')[0];
-// Init cobranza dates on page open
-const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-const fmtDate = d => {
-  if(!d) return '—';
-  try{ return new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); }
-  catch{ return d; }
-};
+const fmt = n => '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 
-function initials(n){ const w=(n||'?').trim().split(' '); return (w[0][0]+(w[1]?w[1][0]:'')).toUpperCase() }
+function getCliente(id){ return CLIENTES.find(c=>c.id==id)||{nombre:'?',tel:'',saldo_total:0,es_renta:false} }
+function initials(n){ const w=n.trim().split(' '); return (w[0][0]+(w[1]?w[1][0]:'')).toUpperCase() }
 
 function estatusCliente(cl){
   if(cl.dias_91_mas>0) return {label:'Crítico 91+',cls:'pill-red'};
@@ -507,119 +439,11 @@ function estatusCliente(cl){
   return {label:'Al corriente',cls:'pill-green'};
 }
 function resultadoPill(r){
-  if(!r) return '—';
+  if(!r) return '';
   if(r.includes('Prometió')||r.includes('hoy')||r.includes('Pagado')) return `<span class="pill pill-green">${r}</span>`;
   if(r.includes('espera')||r.includes('Solicitó')) return `<span class="pill pill-amber">${r}</span>`;
   if(r.includes('contestó')||r.includes('equivocado')) return `<span class="pill pill-gray">${r}</span>`;
   return `<span class="pill pill-blue">${r}</span>`;
-}
-function getCliente(id){ return CLIENTES.find(c=>c.id==id)||{nombre:'?',tel:'',saldo_total:0,es_renta:false,facturas:[]} }
-
-// ══════════════════════════════════════════════════════
-// AUTH
-// ══════════════════════════════════════════════════════
-auth.onAuthStateChanged(async user => {
-  document.getElementById('loading').style.display = 'none';
-  if(user){
-    CURRENT_USER = user;
-    // Check role in Firestore
-    let userDoc;
-    try{ userDoc = await db.collection('usuarios').doc(user.uid).get(); }
-    catch(e){ console.error('Error reading user doc:', e); }
-    if(userDoc && userDoc.exists){
-      const data = userDoc.data();
-      IS_ADMIN = data.rol === 'admin';
-      document.getElementById('user-name-chip').textContent = data.nombre || user.email;
-    } else {
-      // First time — create admin user doc
-      IS_ADMIN = true;
-      await db.collection('usuarios').doc(user.uid).set({
-        email: user.email, nombre: user.email.split('@')[0],
-        rol: 'admin', activo: true, creado: new Date()
-      });
-    }
-    if(IS_ADMIN){
-      document.getElementById('admin-chip').style.display = 'inline';
-      document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
-    }
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    await cargarDatos();
-    suscribirGestiones();
-  } else {
-    document.getElementById('login-page').style.display = 'block';
-    document.getElementById('app').style.display = 'none';
-  }
-});
-
-async function doLogin(){
-  const email = document.getElementById('login-email').value;
-  const pass = document.getElementById('login-pass').value;
-  const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-err');
-  err.style.display = 'none';
-  btn.innerHTML = '<span class="spinner"></span> Entrando...';
-  btn.disabled = true;
-  try{
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch(e){
-    err.textContent = e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
-      ? 'Correo o contraseña incorrectos' : 'Error al iniciar sesión: ' + e.message;
-    err.style.display = 'block';
-    btn.innerHTML = 'Iniciar sesión';
-    btn.disabled = false;
-  }
-}
-
-async function doLogout(){
-  if(UNSUBSCRIBE_GESTIONES) UNSUBSCRIBE_GESTIONES();
-  await auth.signOut();
-}
-
-// ══════════════════════════════════════════════════════
-// DATA — FIRESTORE
-// ══════════════════════════════════════════════════════
-async function cargarDatos(){
-  try{
-    const cliSnap = await db.collection('clientes').get();
-    CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){
-    console.warn('No se pudieron cargar clientes:', e.message);
-    CLIENTES = [];
-  }
-  try{
-    const rentaSnap = await db.collection('renta_config').get();
-    RENTA_DATA = {};
-    rentaSnap.docs.forEach(d=>{ RENTA_DATA[d.id] = d.data(); });
-  }catch(e){ RENTA_DATA = {}; }
-  try{
-    const metaDoc = await db.collection('meta').doc('importacion').get();
-    if(metaDoc.exists){
-      const el=document.getElementById('ultima-importacion');
-      if(el) el.textContent = metaDoc.data().texto || '—';
-    }
-  }catch(e){}
-  renderHoy();
-  renderClientes();
-  renderRenta();
-}
-
-function suscribirGestiones(){
-  try{
-    let query = db.collection('gestiones').orderBy('fecha','desc').limit(500);
-    if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
-    UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
-      GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
-      renderHoy();
-      renderGestiones();
-    }, err => {
-      console.warn('Error al cargar gestiones:', err.message);
-      // Show instructions to fix rules
-      if(err.code === 'permission-denied'){
-        document.getElementById('page-hoy').innerHTML += '<div style="background:#FCE4D6;border-radius:8px;padding:14px;margin:16px 0;font-size:13px;color:#C0392B"><strong>⚠️ Acción requerida:</strong> Las reglas de Firestore están bloqueando el acceso. Ve a Firebase → Firestore → Reglas y actualízalas.</div>';
-      }
-    });
-  }catch(e){ console.warn('suscribirGestiones error:', e); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -627,12 +451,14 @@ function suscribirGestiones(){
 // ══════════════════════════════════════════════════════
 function showPage(id, el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
+  if(id==='hoy') renderHoy();
+  if(id==='clientes') renderClientes();
+  if(id==='gestiones') renderGestiones();
+  if(id==='renta') renderRenta();
   if(id==='reporte') initReporte();
-  if(id==='cobranza'){cargarGestores();setRangoSemana();}
-  if(id==='usuarios') renderUsuarios();
 }
 
 // ══════════════════════════════════════════════════════
@@ -643,11 +469,14 @@ function renderHoy(){
   const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
-  const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
-    if(!rd.vencimiento) return false;
-    const dias = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
+  const rentaAlerta = CLIENTES.filter(c=>{
+    if(!c.es_renta) return false;
+    const rd = RENTA_DATA[c.id];
+    if(!rd?.vencimiento) return false;
+    const dias = Math.ceil((new Date(rd.vencimiento+' 12:00:00')-new Date())/86400000);
     return dias<=3;
   }).length;
+
   document.getElementById('kpis-hoy').innerHTML = `
     <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${hoy.length}</div></div>
     <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${venc.length}</div></div>
@@ -655,96 +484,104 @@ function renderHoy(){
     <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger">${criticos}</div></div>
     <div class="kpi"><div class="kpi-label">Renta por vencer</div><div class="kpi-value purple">${rentaAlerta}</div></div>
   `;
-  try{document.getElementById('badge-hoy').textContent = hoy.length+' hoy';}catch(e){}
-  try{document.getElementById('badge-renta').textContent = rentaAlerta+' renta';}catch(e){}
-  const makeRow=(g,showVenc)=>{
-    const cl=getCliente(g.clienteId);
-    const est=estatusCliente(cl);
-    const dateCol=showVenc?`<td style="color:var(--red)">${fmtDate(g.seguimiento)}</td>`:'';
+
+  document.getElementById('badge-hoy').textContent = hoy.length + ' hoy';
+  document.getElementById('badge-renta').textContent = rentaAlerta + ' renta';
+
+  const makeRow = (g,showVenc) => {
+    const cl = getCliente(g.clienteId);
+    const est = estatusCliente(cl);
+    const dateCol = showVenc ? `<td style="color:var(--red)">${fmtDate(g.seguimiento)}</td>` : '';
     return `<tr>
       <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${g.clienteId}</span></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td>${fmt(cl.saldo_total)}</td>
       ${dateCol}
       <td><span class="pill ${est.cls}">${est.label}</span></td>
       <td>${resultadoPill(g.resultado)}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td>
-        <button class="btn btn-sm" onclick="verCliente('${g.clienteId}');showPage('clientes',document.querySelectorAll('.nav-item')[1])">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="verCliente('${g.clienteId}')">Ver</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>
       </td>
     </tr>`;
   };
+
   document.getElementById('tbody-hoy').innerHTML = hoy.length
     ? hoy.map(g=>makeRow(g,false)).join('')
-    : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin pendientes para hoy ✓</td></tr>';
+    : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Sin pendientes para hoy ✓</td></tr>';
+
   document.getElementById('tbody-vencidos').innerHTML = venc.length
     ? venc.map(g=>makeRow(g,true)).join('')
-    : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin seguimientos vencidos ✓</td></tr>';
+    : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin seguimientos vencidos ✓</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════
 // CLIENTES
 // ══════════════════════════════════════════════════════
 function filtrarClientes(q){
-  const fe = document.getElementById('filtro-est').value;
+  const filtroEst = document.getElementById('filtro-estatus').value;
   let lista = CLIENTES;
-  if(q) lista=lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||String(c.id).includes(q)||(c.tel||'').includes(q));
-  if(fe==='critico') lista=lista.filter(c=>c.dias_91_mas>0);
-  else if(fe==='vencido') lista=lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
-  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!c.dias_1_30&&!c.dias_31_60);
-  else if(fe==='renta') lista=lista.filter(c=>c.es_renta);
+  if(q) lista = lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||c.id.includes(q)||c.tel.includes(q));
+  if(filtroEst==='critico') lista = lista.filter(c=>c.dias_91_mas>0);
+  else if(filtroEst==='vencido') lista = lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
+  else if(filtroEst==='corriente') lista = lista.filter(c=>c.al_corriente>0&&c.dias_1_30===0&&c.dias_31_60===0);
+  else if(filtroEst==='renta') lista = lista.filter(c=>c.es_renta);
   renderClientes(lista);
 }
+
 function renderClientes(lista){
   document.getElementById('lista-clientes').style.display='block';
   document.getElementById('detalle-cliente').classList.remove('open');
-  lista=[...(lista||CLIENTES)].sort((a,b)=>b.saldo_total-a.saldo_total);
-  // Show summary
-  const totSaldo=lista.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const totVenc=lista.reduce((a,c)=>a+c.dias_1_30+c.dias_31_60+c.dias_61_90+c.dias_91_mas,0);
-  const totCor=lista.reduce((a,c)=>a+c.al_corriente,0);
-  const rf=document.getElementById('resumen-filtro');
-  if(rf){rf.style.display='flex';document.getElementById('rf-count').textContent=lista.length;document.getElementById('rf-saldo').textContent=fmt(totSaldo);document.getElementById('rf-vencido').textContent=fmt(totVenc);document.getElementById('rf-corriente').textContent=fmt(totCor);}
-  document.getElementById('tbody-clientes').innerHTML=lista.map(cl=>{
-    const est=estatusCliente(cl);
+  lista = lista || CLIENTES;
+  // Sort by saldo desc
+  lista = [...lista].sort((a,b)=>b.saldo_total-a.saldo_total);
+  document.getElementById('tbody-clientes').innerHTML = lista.map(cl=>{
+    const est = estatusCliente(cl);
     return `<tr>
       <td style="color:var(--muted)">${cl.id}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="text-align:right"><strong>${fmt(cl.saldo_total)}</strong></td>
       <td><span class="pill ${est.cls}">${est.label}</span></td>
       <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
       <td>
-        <button class="btn btn-sm" onclick="verCliente('${cl.id}')">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="verCliente('${cl.id}')">Ver</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
       </td>
     </tr>`;
   }).join('');
 }
+
 function verCliente(id){
-  const cl=getCliente(id);
-  const est=estatusCliente(cl);
-  const gests=GESTIONES.filter(g=>String(g.clienteId)==String(id)).slice(0,20);
+  const cl = getCliente(id);
+  const est = estatusCliente(cl);
+  const gests = GESTIONES.filter(g=>g.clienteId==id).sort((a,b)=>b.fecha.localeCompare(a.fecha));
   document.getElementById('lista-clientes').style.display='none';
-  const panel=document.getElementById('detalle-cliente');
-  const facsPend=(cl.facturas||[]).filter(f=>f.saldo!==0).sort((a,b)=>b.saldo-a.saldo);
-  panel.innerHTML=`
-    <button class="detail-back" onclick="renderClientes()">← Volver a clientes</button>
+  const panel = document.getElementById('detalle-cliente');
+  panel.innerHTML = `
+    <button class="detail-back" onclick="renderClientes()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Volver a clientes
+    </button>
     <div class="detail-header">
       <div class="avatar ${cl.es_renta?'renta':''}">${initials(cl.nombre)}</div>
-      <div style="flex:1">
-        <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span>Sin teléfono</span>'}
-          <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
+      <div class="detail-info">
+        <h2>${cl.nombre}</h2>
+        <div class="detail-meta">
+          ${cl.tel?`<a class="tel" href="tel:${cl.tel}" style="font-size:13px">📞 ${cl.tel}</a>`:'<span style="color:var(--muted);font-size:13px">Sin teléfono</span>'}
+          <span style="font-size:13px;color:var(--muted)">ID: ${cl.id} · ${cl.plazo}</span>
         </div>
-        <div style="margin-top:8px;display:flex;gap:8px">
+        <div class="detail-chips" style="margin-top:8px">
           <span class="pill ${est.cls}">${est.label}</span>
           ${cl.es_renta?'<span class="pill pill-purple">Renta</span>':''}
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>
+      <div style="margin-left:auto">
+        <button class="btn btn-primary" onclick="abrirModalGestion('${id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.15 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16z"/></svg>
+          Registrar llamada
+        </button>
+      </div>
     </div>
     <div class="info-grid">
       <div class="info-box"><div class="info-box-label">Saldo total</div><div class="info-box-value" style="color:${cl.saldo_total>0?'var(--red)':'var(--green)'}">${fmt(cl.saldo_total)}</div></div>
@@ -756,35 +593,42 @@ function verCliente(id){
     </div>
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Documentos pendientes</span>
-        <span style="font-size:12px;color:var(--muted)">${facsPend.length} documentos</span>
+        <span class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Facturas pendientes
+        </span>
+        <span style="font-size:12px;color:var(--muted)">${cl.facturas?cl.facturas.filter(f=>f.saldo>0).length:0} documentos</span>
       </div>
-      ${facsPend.length?`<div class="table-wrap"><table>
-        <thead><tr><th>Documento</th><th>Fecha</th><th>Saldo ($)</th><th>Al corriente</th><th>1-30 días</th><th>31-60 días</th><th>61-90 días</th><th>91+ días</th></tr></thead>
-        <tbody>${facsPend.map(f=>`<tr>
-          <td style="font-weight:500">${f.doc}</td>
-          <td style="color:var(--muted)">${f.fecha}</td>
-          <td style="text-align:right;font-weight:600;color:${f.saldo<0?'var(--green)':f.saldo===0?'var(--muted)':'var(--text)'}">${f.saldo<0?'('+fmt(f.saldo)+') NC':fmt(f.saldo)}</td>
-          <td style="text-align:right;color:var(--green)">${f.al_corriente>0?fmt(f.al_corriente):'—'}</td>
-          <td style="text-align:right;color:var(--amber)">${f['1_30']>0?fmt(f['1_30']):'—'}</td>
-          <td style="text-align:right;color:var(--amber)">${f['31_60']>0?fmt(f['31_60']):'—'}</td>
-          <td style="text-align:right;color:var(--red)">${f['61_90']>0?fmt(f['61_90']):'—'}</td>
-          <td style="text-align:right;color:var(--red);font-weight:${f['91_mas']>0?'700':'400'}">${f['91_mas']>0?fmt(f['91_mas']):'—'}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>`:'<p style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Sin facturas pendientes</p>'}
+      ${cl.facturas && cl.facturas.filter(f=>f.saldo>0).length > 0
+        ? `<div class="table-wrap"><table>
+            <thead><tr><th>Documento</th><th>Fecha</th><th>Saldo ($)</th><th>Al corriente</th><th>1-30 días</th><th>31-60 días</th><th>61-90 días</th><th>91+ días</th></tr></thead>
+            <tbody>${cl.facturas.filter(f=>f.saldo>0).map(f=>`<tr>
+              <td style="font-weight:500">${f.doc}</td>
+              <td style="color:var(--muted)">${f.fecha}</td>
+              <td style="text-align:right;font-weight:600">${fmt(f.saldo)}</td>
+              <td style="text-align:right;color:var(--green)">${f.al_corriente>0?fmt(f.al_corriente):'—'}</td>
+              <td style="text-align:right;color:var(--amber)">${f['1_30']>0?fmt(f['1_30']):'—'}</td>
+              <td style="text-align:right;color:var(--amber)">${f['31_60']>0?fmt(f['31_60']):'—'}</td>
+              <td style="text-align:right;color:var(--red)">${f['61_90']>0?fmt(f['61_90']):'—'}</td>
+              <td style="text-align:right;color:var(--red);font-weight:${f['91_mas']>0?'700':'400'}">${f['91_mas']>0?fmt(f['91_mas']):'—'}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table></div>`
+        : '<p style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Sin facturas pendientes</p>'}
     </div>
     <div class="card">
       <div class="card-header"><span class="card-title">Historial de gestiones</span></div>
-      ${gests.length?`<div class="table-wrap"><table>
-        <thead><tr><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead>
-        <tbody>${gests.map(g=>`<tr>
-          <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
+      ${gests.length ? `<div class="table-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody>${
+        gests.map(g=>`<tr>
+          <td style="color:var(--muted)">${g.id}</td>
+          <td>${fmtDate(g.fecha)}</td>
+          <td>${g.medio}</td>
           <td>${resultadoPill(g.resultado)}</td>
-          <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
           <td style="${g.seguimiento<TODAY?'color:var(--red)':g.seguimiento===TODAY?'color:var(--amber)':''}">${fmtDate(g.seguimiento)}</td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>`:'<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${g.notas||'—'}</td>
+        </tr>`).join('')
+      }</tbody></table></div>`
+      : '<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
     </div>
   `;
   panel.classList.add('open');
@@ -794,327 +638,347 @@ function verCliente(id){
 // GESTIONES
 // ══════════════════════════════════════════════════════
 function filtrarGestiones(q){
-  let lista=GESTIONES;
-  if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
+  let lista = GESTIONES;
+  if(q) lista = lista.filter(g=>{
+    const cl=getCliente(g.clienteId);
+    return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase());
+  });
   renderGestiones(lista);
 }
+
 function renderGestiones(lista){
-  lista=lista||GESTIONES;
-  document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
+  lista = lista || GESTIONES;
+  lista = [...lista].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  document.getElementById('tbody-gestiones').innerHTML = lista.length ? lista.map(g=>{
     const cl=getCliente(g.clienteId);
-    const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
+    const segColor = g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
     return `<tr>
-      <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
+      <td style="color:var(--muted)">${g.id}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
+      <td>${fmtDate(g.fecha)}</td>
+      <td>${g.medio}</td>
       <td>${resultadoPill(g.resultado)}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
-      <td style="${sc}">${fmtDate(g.seguimiento)}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td style="${segColor}">${fmtDate(g.seguimiento)}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button></td>
     </tr>`;
-  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════
 // MODAL GESTIÓN
 // ══════════════════════════════════════════════════════
 function abrirModalGestion(clienteId){
-  const sel=document.getElementById('mg-cliente');
-  sel.innerHTML='<option value="">Selecciona un cliente...</option>'+
+  const sel = document.getElementById('mg-cliente');
+  sel.innerHTML = '<option value="">Selecciona un cliente...</option>' +
     [...CLIENTES].sort((a,b)=>a.nombre.localeCompare(b.nombre))
-    .map(c=>`<option value="${c.id}" ${String(c.id)==String(clienteId)?'selected':''}>${c.nombre}</option>`).join('');
-  document.getElementById('mg-fecha').value=TODAY;
-  document.getElementById('mg-hora').value=new Date().toTimeString().slice(0,5);
-  ['mg-seguimiento','mg-notas','mg-contacto'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('mg-compromiso').value='';
+    .map(c=>`<option value="${c.id}" ${c.id==clienteId?'selected':''}>${c.nombre}</option>`).join('');
+  document.getElementById('mg-fecha').value = TODAY;
+  document.getElementById('mg-hora').value = new Date().toTimeString().slice(0,5);
+  document.getElementById('mg-seguimiento').value = '';
+  document.getElementById('mg-notas').value = '';
+  document.getElementById('mg-contacto').value = '';
+  document.getElementById('mg-compromiso').value = '';
   document.getElementById('modal-gestion').classList.add('open');
 }
-async function guardarGestion(){
-  const clienteId=document.getElementById('mg-cliente').value;
-  if(!clienteId){alert('Selecciona un cliente');return;}
-  const btn=document.getElementById('btn-guardar-gestion');
-  btn.innerHTML='<span class="spinner"></span> Guardando...';btn.disabled=true;
-  try{
-    const userDoc=await db.collection('usuarios').doc(CURRENT_USER.uid).get();
-    const gestorNombre=userDoc.exists?userDoc.data().nombre:CURRENT_USER.email;
-    const gCount=await db.collection('gestiones').get();
-    await db.collection('gestiones').add({
-      id:'GES-'+String(gCount.size+1).padStart(3,'0'),
-      clienteId,
-      gestorId:CURRENT_USER.uid,
-      gestorNombre,
-      fecha:document.getElementById('mg-fecha').value,
-      hora:document.getElementById('mg-hora').value,
-      medio:document.getElementById('mg-medio').value,
-      contacto:document.getElementById('mg-contacto').value,
-      resultado:document.getElementById('mg-resultado').value,
-      seguimiento:document.getElementById('mg-seguimiento').value,
-      compromiso:parseFloat(document.getElementById('mg-compromiso').value)||0,
-      notas:document.getElementById('mg-notas').value,
-      creado:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    cerrarModal('modal-gestion');
-  }catch(e){alert('Error al guardar: '+e.message);}
-  btn.innerHTML='Guardar';btn.disabled=false;
+
+function guardarGestion(){
+  const clienteId = document.getElementById('mg-cliente').value;
+  if(!clienteId){ alert('Selecciona un cliente'); return; }
+  const g = {
+    id:'GES-'+String(GESTIONES.length+1).padStart(3,'0'),
+    clienteId,
+    fecha: document.getElementById('mg-fecha').value,
+    hora:  document.getElementById('mg-hora').value,
+    medio: document.getElementById('mg-medio').value,
+    contacto: document.getElementById('mg-contacto').value,
+    resultado: document.getElementById('mg-resultado').value,
+    seguimiento: document.getElementById('mg-seguimiento').value,
+    compromiso: parseFloat(document.getElementById('mg-compromiso').value)||0,
+    notas: document.getElementById('mg-notas').value,
+  };
+  GESTIONES.unshift(g);
+  localStorage.setItem('gestiones', JSON.stringify(GESTIONES));
+  cerrarModal('modal-gestion');
+  renderHoy(); renderGestiones();
+  showPage('gestiones', document.querySelectorAll('.nav-item')[2]);
 }
 
 // ══════════════════════════════════════════════════════
 // RENTA
 // ══════════════════════════════════════════════════════
 function renderRenta(){
-  const rentas=CLIENTES.filter(c=>c.es_renta);
-  let alertas=0;
-  const rows=rentas.map(cl=>{
-    const rd=RENTA_DATA[cl.id]||{};
-    let dias='—',alertaHtml='';
+  const rentas = CLIENTES.filter(c=>c.es_renta);
+  let alertas = 0;
+  const rows = rentas.map(cl=>{
+    const rd = RENTA_DATA[cl.id] || {};
+    let dias = '—', alertaHtml = '', alertaCls = '';
     if(rd.vencimiento){
-      const d=Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
-      dias=d;
-      if(d<0){alertaHtml='<span class="pill pill-red">Vencido</span>';alertas++;}
-      else if(d<=3){alertaHtml='<span class="pill pill-amber">Llamar hoy</span>';alertas++;}
-      else alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`;
+      const d = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
+      dias = d;
+      if(d<0){ alertaHtml='<span class="pill pill-red">Vencido</span>'; alertas++; }
+      else if(d<=3){ alertaHtml='<span class="pill pill-amber">Llamar hoy</span>'; alertas++; }
+      else{ alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`; }
     }
     return `<tr>
       <td style="color:var(--muted)">${cl.id}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td>${cl.tel?`<a class="tel" href="tel:${cl.tel}">${cl.tel}</a>`:'—'}</td>
       <td style="text-align:right">${fmt(cl.saldo_total)}</td>
       <td style="text-align:right">${rd.monto?fmt(rd.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
       <td>${rd.vencimiento?fmtDate(rd.vencimiento):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
       <td style="text-align:center">${dias}</td>
       <td>${alertaHtml||'<span style="color:var(--muted)">—</span>'}</td>
       <td>
-        <button class="btn btn-sm" onclick="abrirModalRenta('${cl.id}')">Actualizar</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+        <button class="btn" style="padding:4px 8px;font-size:11px" onclick="abrirModalRenta('${cl.id}')">Actualizar</button>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('banner-renta').innerHTML=alertas>0
-    ?`⚠️ ${alertas} cliente(s) de renta con pago próximo o vencido`
-    :'✓ Todos los clientes de renta sin alertas activas';
-  document.getElementById('tbody-renta').innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de renta</td></tr>';
-}
-function abrirModalRenta(id){
-  const cl=getCliente(id);
-  const rd=RENTA_DATA[id]||{};
-  document.getElementById('mr-titulo').textContent='Actualizar renta — '+cl.nombre;
-  document.getElementById('mr-id').value=id;
-  document.getElementById('mr-monto').value=rd.monto||'';
-  document.getElementById('mr-vencimiento').value=rd.vencimiento||'';
-  document.getElementById('mr-notas').value=rd.notas||'';
-  document.getElementById('modal-renta').classList.add('open');
-}
-async function guardarRenta(){
-  const id=document.getElementById('mr-id').value;
-  const data={monto:parseFloat(document.getElementById('mr-monto').value)||0,vencimiento:document.getElementById('mr-vencimiento').value,notas:document.getElementById('mr-notas').value};
-  await db.collection('renta_config').doc(String(id)).set(data);
-  RENTA_DATA[id]=data;
-  cerrarModal('modal-renta');
-  renderRenta();
-  renderHoy();
+
+  document.getElementById('banner-renta').innerHTML = alertas > 0
+    ? `⚠️ ${alertas} cliente(s) de renta con pago próximo o vencido — revisar y llamar`
+    : '✓ Todos los clientes de renta al corriente';
+  document.getElementById('tbody-renta').innerHTML = rows ||
+    '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de renta</td></tr>';
 }
 
-// ══════════════════════════════════════════════════════
-// USUARIOS (admin)
-// ══════════════════════════════════════════════════════
-async function renderUsuarios(){
-  const snap=await db.collection('usuarios').get();
-  document.getElementById('tbody-usuarios').innerHTML=snap.docs.map(d=>{
-    const u=d.data();
-    return `<tr>
-      <td>${u.email}</td><td>${u.nombre||'—'}</td>
-      <td><span class="pill ${u.rol==='admin'?'pill-blue':'pill-gray'}">${u.rol==='admin'?'Administrador':'Gestor'}</span></td>
-      <td><span class="pill ${u.activo!==false?'pill-green':'pill-red'}">${u.activo!==false?'Activo':'Inactivo'}</span></td>
-    </tr>`;
-  }).join('');
+function abrirModalRenta(id){
+  const cl = getCliente(id);
+  const rd = RENTA_DATA[id] || {};
+  document.getElementById('mr-titulo').textContent = 'Actualizar renta — ' + cl.nombre;
+  document.getElementById('mr-id').value = id;
+  document.getElementById('mr-monto').value = rd.monto || '';
+  document.getElementById('mr-vencimiento').value = rd.vencimiento || '';
+  document.getElementById('mr-notas').value = rd.notas || '';
+  document.getElementById('modal-renta').classList.add('open');
 }
-function abrirModalUsuario(){ document.getElementById('modal-usuario').classList.add('open'); }
-async function crearUsuario(){
-  const nombre=document.getElementById('nu-nombre').value.trim();
-  const email=document.getElementById('nu-email').value.trim();
-  const pass=document.getElementById('nu-pass').value;
-  const rol=document.getElementById('nu-rol').value;
-  const err=document.getElementById('nu-err');
-  err.style.display='none';
-  if(!nombre||!email||!pass){err.textContent='Completa todos los campos';err.style.display='block';return;}
-  const btn=document.getElementById('btn-crear-usuario');
-  btn.innerHTML='<span class="spinner"></span> Creando...';btn.disabled=true;
-  try{
-    // Create user in Firebase Auth using Admin SDK via a secondary app instance
-    const secondaryApp=firebase.initializeApp(firebaseConfig,'Secondary');
-    const secAuth=secondaryApp.auth();
-    const cred=await secAuth.createUserWithEmailAndPassword(email,pass);
-    await db.collection('usuarios').doc(cred.user.uid).set({email,nombre,rol,activo:true,creado:new Date()});
-    await secAuth.signOut();
-    secondaryApp.delete();
-    cerrarModal('modal-usuario');
-    document.getElementById('nu-nombre').value='';
-    document.getElementById('nu-email').value='';
-    document.getElementById('nu-pass').value='';
-    renderUsuarios();
-    alert('Usuario creado exitosamente.');
-  }catch(e){
-    err.textContent='Error: '+e.message;err.style.display='block';
-    btn.innerHTML='Crear usuario';btn.disabled=false;
-  }
-  btn.innerHTML='Crear usuario';btn.disabled=false;
+
+function guardarRenta(){
+  const id = document.getElementById('mr-id').value;
+  RENTA_DATA[id] = {
+    monto: parseFloat(document.getElementById('mr-monto').value)||0,
+    vencimiento: document.getElementById('mr-vencimiento').value,
+    notas: document.getElementById('mr-notas').value,
+  };
+  localStorage.setItem('renta_data', JSON.stringify(RENTA_DATA));
+  cerrarModal('modal-renta');
+  renderRenta();
 }
 
 // ══════════════════════════════════════════════════════
 // REPORTE
 // ══════════════════════════════════════════════════════
 function initReporte(){
-  const hoy=new Date();
-  const lunes=new Date(hoy);lunes.setDate(hoy.getDate()-hoy.getDay()+1);
-  const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
-  document.getElementById('rep-inicio').value=lunes.toISOString().split('T')[0];
-  document.getElementById('rep-fin').value=dom.toISOString().split('T')[0];
-  const saldo=CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const criticos=CLIENTES.filter(c=>c.dias_91_mas>0);
-  document.getElementById('preview-reporte').innerHTML=`
-    <div class="kpi-grid">
-      <div class="kpi"><div class="kpi-label">Saldo por cobrar</div><div class="kpi-value danger" style="font-size:18px">${fmt(saldo)}</div></div>
-      <div class="kpi"><div class="kpi-label">Total gestiones</div><div class="kpi-value" style="font-size:18px">${GESTIONES.length}</div></div>
-      <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger" style="font-size:18px">${criticos.length}</div></div>
-    </div>`;
+  const hoy = new Date();
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate()-hoy.getDay()+1);
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate()+6);
+  document.getElementById('rep-inicio').value = lunes.toISOString().split('T')[0];
+  document.getElementById('rep-fin').value = domingo.toISOString().split('T')[0];
+  const saldo = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0);
+  const gestSemana = GESTIONES.filter(g=>g.fecha>=document.getElementById('rep-inicio').value && g.fecha<=document.getElementById('rep-fin').value);
+  const compromisos = GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
+  document.getElementById('preview-reporte').innerHTML = `
+    <div class="kpi-grid" style="margin-bottom:14px">
+      <div class="kpi"><div class="kpi-label">Saldo total por cobrar</div><div class="kpi-value danger" style="font-size:18px">${fmt(saldo)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gestiones esta semana</div><div class="kpi-value" style="font-size:18px">${gestSemana.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Compromisos activos</div><div class="kpi-value warning" style="font-size:18px">${compromisos.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Clientes críticos 91+</div><div class="kpi-value danger" style="font-size:18px">${criticos.length}</div></div>
+    </div>
+    <p style="font-size:13px;color:var(--muted)">El PDF incluirá: resumen ejecutivo, antigüedad de saldos, clientes contactados, compromisos de pago y próximas acciones.</p>
+  `;
 }
+
 function generarReporte(){
-  const inicio=document.getElementById('rep-inicio').value;
-  const fin=document.getElementById('rep-fin').value;
-  const gestSem=GESTIONES.filter(g=>g.fecha>=inicio&&g.fecha<=fin);
-  const contactados=[...new Set(gestSem.map(g=>g.clienteId))].map(id=>getCliente(id));
-  const compromisos=GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
-  const saldo=CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const criticos=CLIENTES.filter(c=>c.dias_91_mas>0).slice(0,10);
-  const fmtD=d=>new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Cobranza</title>
-  <style>body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:20px}
-  .hdr{background:#1F3864;color:#fff;padding:20px;margin:-20px -20px 20px;text-align:center}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-  .kpi{background:#EBF3FB;border-radius:6px;padding:12px;text-align:center}
-  .kv{font-size:20px;font-weight:bold;color:#1F3864}.kl{font-size:10px;color:#555}
-  h2{background:#2E75B6;color:#fff;padding:7px 12px;margin:20px 0 8px;border-radius:4px;font-size:13px}
-  table{width:100%;border-collapse:collapse;font-size:11px}
-  th{background:#EBF3FB;padding:6px 8px;text-align:left;border-bottom:1px solid #BDD7EE}
-  td{padding:5px 8px;border-bottom:1px solid #F0F4F8}
-  .red{color:#C0392B;font-weight:bold}
-  .footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
-  @media print{body{padding:0}}</style></head><body>
-  <div class="hdr"><h1 style="font-size:20px;margin:0 0 6px">REPORTE SEMANAL DE COBRANZA</h1>
-  <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
-  <div class="kpis">
-    <div class="kpi"><div class="kv">${fmt(saldo)}</div><div class="kl">Saldo por cobrar</div></div>
-    <div class="kpi"><div class="kv">${gestSem.length}</div><div class="kl">Gestiones realizadas</div></div>
-    <div class="kpi"><div class="kv">${compromisos.length}</div><div class="kl">Compromisos activos</div></div>
-    <div class="kpi"><div class="kv">${criticos.length}</div><div class="kl">Clientes críticos 91+</div></div>
+  const inicio = document.getElementById('rep-inicio').value;
+  const fin = document.getElementById('rep-fin').value;
+  const gestSemana = GESTIONES.filter(g=>g.fecha>=inicio&&g.fecha<=fin);
+  const contactados = [...new Set(gestSemana.map(g=>g.clienteId))].map(id=>getCliente(id));
+  const compromisos = GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
+  const saldo = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).slice(0,10);
+  const fmtD = d => new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Reporte de Cobranza</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0;padding:20px}
+    .header{background:#1F3864;color:#fff;padding:20px;margin:-20px -20px 20px;text-align:center}
+    .header h1{font-size:20px;margin:0 0 6px}
+    .header p{font-size:12px;margin:0;opacity:.8}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+    .kpi{background:#EBF3FB;border-radius:6px;padding:12px;text-align:center}
+    .kpi-v{font-size:22px;font-weight:bold;color:#1F3864}
+    .kpi-l{font-size:10px;color:#555;margin-top:2px}
+    h2{font-size:13px;background:#2E75B6;color:#fff;padding:7px 12px;margin:20px 0 8px;border-radius:4px}
+    table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px}
+    th{background:#EBF3FB;padding:6px 8px;text-align:left;border-bottom:1px solid #BDD7EE}
+    td{padding:5px 8px;border-bottom:1px solid #F0F4F8}
+    .red{color:#C0392B;font-weight:bold}
+    .footer{font-size:10px;color:#888;text-align:center;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <div class="header">
+    <h1>REPORTE SEMANAL DE COBRANZA</h1>
+    <p>Semana: ${fmtD(inicio)} — ${fmtD(fin)} &nbsp;|&nbsp; Generado: ${fmtD(TODAY)}</p>
   </div>
-  <h2>CLIENTES CONTACTADOS</h2>
-  <table><thead><tr><th>Cliente</th><th>Contactos</th><th>Gestor</th><th>Último resultado</th><th>Próx. seguimiento</th></tr></thead><tbody>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-v">${fmt(saldo)}</div><div class="kpi-l">Saldo por cobrar</div></div>
+    <div class="kpi"><div class="kpi-v">${gestSemana.length}</div><div class="kpi-l">Gestiones realizadas</div></div>
+    <div class="kpi"><div class="kpi-v">${compromisos.length}</div><div class="kpi-l">Compromisos activos</div></div>
+    <div class="kpi"><div class="kpi-v">${criticos.length}</div><div class="kpi-l">Clientes críticos 91+</div></div>
+  </div>
+  <h2>CLIENTES CONTACTADOS ESTA SEMANA</h2>
+  <table><thead><tr><th>Cliente</th><th>Contactos</th><th>Último resultado</th><th>Próx. seguimiento</th></tr></thead><tbody>
   ${contactados.slice(0,20).map(cl=>{
-    const gs=gestSem.filter(g=>String(g.clienteId)==String(cl.id));
-    const last=gs[0];
-    return `<tr><td>${cl.nombre}</td><td style="text-align:center">${gs.length}</td><td>${last?.gestorNombre||'—'}</td><td>${last?.resultado||'—'}</td><td>${last?.seguimiento?fmtD(last.seguimiento):'—'}</td></tr>`;
-  }).join('')||'<tr><td colspan="5" style="text-align:center">Sin gestiones esta semana</td></tr>'}
+    const gs = gestSemana.filter(g=>g.clienteId==cl.id);
+    const last = gs[0];
+    return `<tr><td>${cl.nombre}</td><td style="text-align:center">${gs.length}</td><td>${last?.resultado||'—'}</td><td>${last?.seguimiento?fmtD(last.seguimiento):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="4" style="text-align:center">Sin gestiones esta semana</td></tr>'}
   </tbody></table>
-  <h2>CLIENTES CRÍTICOS 91+ DÍAS</h2>
+  <h2>CLIENTES CRÍTICOS — 91+ DÍAS</h2>
   <table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo vencido</th></tr></thead><tbody>
   ${criticos.map(c=>`<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.tel||'—'}</td><td class="red">${fmt(c.dias_91_mas)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center">Sin clientes críticos</td></tr>'}
   </tbody></table>
   <h2>COMPROMISOS DE PAGO ACTIVOS</h2>
-  <table><thead><tr><th>Cliente</th><th>Gestor</th><th>Resultado</th><th>Fecha compromiso</th><th>Notas</th></tr></thead><tbody>
-  ${compromisos.slice(0,10).map(g=>{const cl=getCliente(g.clienteId);return`<tr><td>${cl.nombre}</td><td>${g.gestorNombre||'—'}</td><td>${g.resultado}</td><td>${g.seguimiento?fmtD(g.seguimiento):'—'}</td><td>${g.notas||'—'}</td></tr>`}).join('')||'<tr><td colspan="5" style="text-align:center">Sin compromisos</td></tr>'}
+  <table><thead><tr><th>Cliente</th><th>Resultado</th><th>Fecha compromiso</th><th>Notas</th></tr></thead><tbody>
+  ${compromisos.slice(0,10).map(g=>{const cl=getCliente(g.clienteId);return`<tr><td>${cl.nombre}</td><td>${g.resultado}</td><td>${g.seguimiento?fmtD(g.seguimiento):'—'}</td><td>${g.notas||'—'}</td></tr>`}).join('')||'<tr><td colspan="4" style="text-align:center">Sin compromisos registrados</td></tr>'}
   </tbody></table>
-  <div class="footer">Reporte generado automáticamente — Confidencial</div>
+  <div class="footer">Reporte generado automáticamente por el Sistema de Cobranza &nbsp;|&nbsp; Confidencial</div>
   </body></html>`;
-  const blob=new Blob([html],{type:'text/html'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Reporte_${fin}.html`;a.click();
+
+  const blob = new Blob([html],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`Reporte_Cobranza_${fin}.html`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // ══════════════════════════════════════════════════════
 // IMPORTAR AS
 // ══════════════════════════════════════════════════════
 function importarAS(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar la AS');return;}
-  const file=input.files[0];if(!file)return;
-  document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Procesando...</p>';
-  const reader=new FileReader();
-  reader.onload=async e=>{
+  const file = input.files[0];
+  if(!file) return;
+  document.getElementById('import-status').innerHTML = '<p style="color:var(--amber)">⏳ Procesando...</p>';
+  const reader = new FileReader();
+  reader.onload = e => {
     try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const cv=(col,row)=>{const cell=ws[col+row];if(!cell)return '';return cell.v!==undefined?String(cell.v):'';}
-      const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
-      const maxRow=range.e.r+1;
-      const toN=v=>parseFloat(String(v).replace(/,/g,''))||0;
-      const SKIP=new Set(['1','4','9']);
-      const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BNTE|^BCMR|^REN[HG]/i;
-      let parsed=[],current=null,fmt=null;
-      for(let r=1;r<=maxRow;r++){
-        const b=cv('B',r).trim(),c=cv('C',r).trim(),d=cv('D',r).trim();
-        const m=cv('M',r).trim(),n=cv('N',r).trim();
-        if(b==='Concepto'||b==='Clientes'||b==='Usuario:') continue;
-        if(b&&/^\d+$/.test(b)&&!SKIP.has(b)&&c&&!DOC.test(c)){
-          if(current)parsed.push(current);
-          current={id:b,nombre:c,plazo:m||n||'--',tel:'',es_renta:/RENTA/i.test(m||n),
+      const wb = XLSX.read(e.target.result,{type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+
+      // Helper: get cell value by address (e.g. 'B16')
+      const cv = (col, row) => {
+        const cell = ws[col + row];
+        if(!cell) return '';
+        return cell.v !== undefined ? String(cell.v) : '';
+      };
+
+      // Get max row
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+      const maxRow = range.e.r + 1;
+
+      const toN = v => parseFloat(String(v).replace(/,/g,''))||0;
+      const SKIP = new Set(['1','4','9',1,4,9]);
+      const DOC = /^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^REN[HG]/i;
+      const PLAZO = /\d+\s*D[I]?$|RENTA$|CREDITO$|CTDO$|EQ CR$/i;
+
+      let parsed = [];
+      let current = null;
+      let fmt = null;
+
+      for(let r = 1; r <= maxRow; r++){
+        const b = cv('B',r).trim();
+        const c = cv('C',r).trim();
+        const d = cv('D',r).trim();
+        const m = cv('M',r).trim();
+        const n = cv('N',r).trim();
+
+        if(b==='Concepto'||b==='Clientes'||b==='Usuario:'||b==='Vendedores:') continue;
+
+        // FMT1: B=id, C=name, M=plazo
+        if(b && /^\d+$/.test(b) && !SKIP.has(b) && c && !DOC.test(c)){
+          if(current) parsed.push(current);
+          current={id:b,nombre:c,plazo:m||n||'--',tel:getCliente(b).tel||'',
+            es_renta:/RENTA/i.test(m||n),
             saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
-          fmt='f1';continue;
+          fmt='f1'; continue;
         }
-        if(b&&/^\d+$/.test(b)&&!SKIP.has(b)&&d&&!c){
-          if(current)parsed.push(current);
+
+        // FMT2: B=id, D=name, C empty, N=plazo
+        if(b && /^\d+$/.test(b) && !SKIP.has(b) && d && !c){
+          if(current) parsed.push(current);
           const pl=n||m||'--';
-          current={id:b,nombre:d,plazo:pl,tel:'',es_renta:/RENTA/i.test(pl),
+          current={id:b,nombre:d,plazo:pl,tel:getCliente(b).tel||'',
+            es_renta:/RENTA/i.test(pl),
             saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
-          fmt='f2';continue;
+          fmt='f2'; continue;
         }
-        if(current&&fmt==='f1'&&(b==='1'||b==='4'||b==='9')&&c&&!DOC.test(c)){
+
+        // FMT1 invoice: B in {1,4,9}, C=doc
+        if(current && fmt==='f1' && (b==='1'||b==='4'||b==='9') && c && !DOC.test(c)){
           const alc=toN(cv('H',r)),d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
-          current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});continue;
+          current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,
+            saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
+          continue;
         }
-        if(current&&fmt==='f2'&&(b==='1'||b==='4'||b==='9')&&c&&!DOC.test(c)){
+
+        // FMT2 invoice: B in {1,4,9}, C=doc
+        if(current && fmt==='f2' && (b==='1'||b==='4'||b==='9') && c && !DOC.test(c)){
           const alc=toN(cv('H',r)),d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
-          current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});continue;
+          current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,
+            saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
+          continue;
         }
-        if(current&&fmt==='f1'&&!b&&cv('C',r)!==''){
-          current.saldo_total=toN(cv('C',r));current.al_corriente=toN(cv('H',r));
-          current.dias_1_30=toN(cv('I',r));current.dias_31_60=toN(cv('K',r));
-          current.dias_61_90=toN(cv('N',r));current.dias_91_mas=toN(cv('Q',r));
-          parsed.push(current);current=null;fmt=null;continue;
+
+        // FMT1 subtotal: B empty, C=saldo
+        if(current && fmt==='f1' && !b && cv('C',r)!==''){
+          current.saldo_total=toN(cv('C',r));
+          current.al_corriente=toN(cv('H',r));
+          current.dias_1_30=toN(cv('I',r));
+          current.dias_31_60=toN(cv('K',r));
+          current.dias_61_90=toN(cv('N',r));
+          current.dias_91_mas=toN(cv('Q',r));
+          parsed.push(current); current=null; fmt=null; continue;
         }
-        if(current&&fmt==='f2'&&!b&&cv('D',r)!==''){
-          current.saldo_total=toN(cv('D',r));current.al_corriente=toN(cv('I',r));
-          current.dias_1_30=toN(cv('J',r));current.dias_31_60=toN(cv('L',r));
-          current.dias_61_90=toN(cv('N',r));current.dias_91_mas=toN(cv('O',r));
-          parsed.push(current);current=null;fmt=null;continue;
+
+        // FMT2 subtotal: B empty, D=saldo
+        if(current && fmt==='f2' && !b && cv('D',r)!==''){
+          current.saldo_total=toN(cv('D',r));
+          current.al_corriente=toN(cv('I',r));
+          current.dias_1_30=toN(cv('J',r));
+          current.dias_31_60=toN(cv('L',r));
+          current.dias_61_90=toN(cv('N',r));
+          current.dias_91_mas=toN(cv('O',r));
+          parsed.push(current); current=null; fmt=null; continue;
         }
       }
-      if(current)parsed.push(current);
-      const seen={};parsed.forEach(c=>{seen[c.id]=c});parsed=Object.values(seen);
-      const withData=parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
+      if(current) parsed.push(current);
+
+      // Dedup
+      const seen={}; parsed.forEach(c=>{seen[c.id]=c}); parsed=Object.values(seen);
+      const withData = parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
+
       if(withData.length>0){
-        // Save to Firestore in batches
-        document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Guardando '+withData.length+' clientes en la base de datos...</p>';
-        const batchSize=400;
-        for(let i=0;i<withData.length;i+=batchSize){
-          const batch=db.batch();
-          withData.slice(i,i+batchSize).forEach(cl=>{
-            const ref=db.collection('clientes').doc(String(cl.id));
-            batch.set(ref,cl);
-          });
-          await batch.commit();
-        }
-        CLIENTES=withData;
-        const total=withData.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-        const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-        const texto=new Date().toLocaleDateString('es-MX')+' — '+withData.length+' clientes · '+fmtN(total);
-        await db.collection('meta').doc('importacion').set({texto,fecha:new Date()});
-        document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+withData.length+' clientes importados · Saldo '+fmtN(total)+'</p>';
-        document.getElementById('ultima-importacion').textContent=texto;
-        renderHoy();renderClientes();renderRenta();
+        CLIENTES = withData;
+        const total = withData.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+        const fmtN = n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+        document.getElementById('import-status').innerHTML=
+          '<p style="color:var(--green)">✅ '+withData.length+' clientes importados · Saldo '+fmtN(total)+'</p>';
+        document.getElementById('ultima-importacion').textContent=
+          new Date().toLocaleDateString('es-MX')+' — '+withData.length+' clientes';
+        renderHoy();
       } else {
-        document.getElementById('import-status').innerHTML='<p style="color:var(--red)">❌ No se encontraron clientes. Verifica el archivo.</p>';
+        document.getElementById('import-status').innerHTML=
+          '<p style="color:var(--red)">❌ No se encontraron clientes ('+parsed.length+' parseados). Revisa la consola.</p>';
+        console.log('Parsed sin filtro:', parsed.slice(0,5));
       }
     }catch(err){
-      document.getElementById('import-status').innerHTML='<p style="color:var(--red)">❌ Error: '+err.message+'</p>';
+      document.getElementById('import-status').innerHTML=
+        '<p style="color:var(--red)">❌ Error: '+err.message+'</p>';
       console.error(err);
     }
   };
@@ -1122,120 +986,43 @@ function importarAS(input){
 }
 
 function importarClientes(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar clientes');return;}
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
     try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const wb = XLSX.read(e.target.result,{type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       const mapa={};
-      data.forEach(row=>{const n=String(row[0]||'').trim().toUpperCase();const t=String(row[2]||'').trim();if(n&&t)mapa[n]=t;});
-      let act=0;
-      const batch=db.batch();
-      CLIENTES=CLIENTES.map(cl=>{
-        const t=mapa[cl.nombre.toUpperCase()];
-        if(t&&!cl.tel){cl.tel=t;act++;const ref=db.collection('clientes').doc(String(cl.id));batch.update(ref,{tel:t});}
+      for(const row of data){
+        const nombre=String(row[0]||'').trim().toUpperCase();
+        const tel=String(row[2]||'').trim();
+        if(nombre&&tel) mapa[nombre]=tel;
+      }
+      let actualizados=0;
+      CLIENTES = CLIENTES.map(cl=>{
+        const t = mapa[cl.nombre.toUpperCase()];
+        if(t&&!cl.tel){cl.tel=t; actualizados++;}
         return cl;
       });
-      if(act>0)await batch.commit();
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos actualizados</p>`;
+      document.getElementById('import-cli-status').innerHTML = `<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${actualizados} teléfonos actualizados</p>`;
     }catch(err){
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
+      document.getElementById('import-cli-status').innerHTML = `<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
-// COBRANZA
-function setRangoHoy(){
-  const h=new Date().toISOString().split('T')[0];
-  document.getElementById('cob-inicio').value=h;
-  document.getElementById('cob-fin').value=h;
-}
-function setRangoSemana(){
-  const hoy=new Date();
-  const lunes=new Date(hoy);lunes.setDate(hoy.getDate()-hoy.getDay()+1);
-  const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
-  document.getElementById('cob-inicio').value=lunes.toISOString().split('T')[0];
-  document.getElementById('cob-fin').value=dom.toISOString().split('T')[0];
-}
-function setRangoMes(){
-  const hoy=new Date();
-  const ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
-  const fin=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
-  document.getElementById('cob-inicio').value=ini.toISOString().split('T')[0];
-  document.getElementById('cob-fin').value=fin.toISOString().split('T')[0];
-}
-function cargarGestores(){
-  const sel=document.getElementById('cob-gestor');
-  if(!sel) return;
-  const gestores=[...new Map(GESTIONES.filter(g=>g.gestorNombre).map(g=>[g.gestorId,g.gestorNombre])).entries()];
-  const current=sel.value;
-  sel.innerHTML='<option value="">Todos los gestores</option>'+gestores.map(([id,nombre])=>`<option value="${id}" ${id===current?'selected':''}>${nombre}</option>`).join('');
-}
-
-function consultarCobranza(){
-  const ini=document.getElementById('cob-inicio').value;
-  const fin=document.getElementById('cob-fin').value;
-  const gestorId=document.getElementById('cob-gestor')?.value||'';
-  const filtroRes=document.getElementById('cob-resultado')?.value||'';
-  if(!ini||!fin){alert('Selecciona un rango de fechas');return;}
-
-  // Base filter: gestiones en el rango
-  let base=GESTIONES.filter(g=>g.fecha>=ini&&g.fecha<=fin);
-  if(gestorId) base=base.filter(g=>g.gestorId===gestorId);
-
-  // Apply resultado filter
-  let tablaGest=base;
-  if(filtroRes==='pago') tablaGest=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy');
-  else if(filtroRes==='pagado') tablaGest=base.filter(g=>g.resultado==='Pagado confirmado');
-  else if(filtroRes==='no_contesto') tablaGest=base.filter(g=>g.resultado==='No contestó');
-  else if(filtroRes!=='todas') tablaGest=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
-
-  const compromisos=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
-  const pagados=base.filter(g=>g.resultado==='Pagado confirmado');
-  const totalCompromiso=compromisos.reduce((a,g)=>a+(g.compromiso||0),0);
-  const totalPagado=pagados.reduce((a,g)=>a+(g.compromiso||0),0);
-  const clientesContactados=new Set(base.map(g=>g.clienteId)).size;
-  const gestorLabel=gestorId?(GESTIONES.find(g=>g.gestorId===gestorId)?.gestorNombre||''):'Todos los gestores';
-
-  document.getElementById('cob-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">Gestiones realizadas</div><div class="kpi-value">${base.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Clientes contactados</div><div class="kpi-value">${clientesContactados}</div></div>
-    <div class="kpi"><div class="kpi-label">Compromisos de pago</div><div class="kpi-value warning">${compromisos.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Monto comprometido ($)</div><div class="kpi-value warning">${fmt(totalCompromiso)}</div></div>
-    <div class="kpi"><div class="kpi-label">Pagado confirmado</div><div class="kpi-value success">${pagados.length} clientes</div></div>
-    <div class="kpi"><div class="kpi-label">Monto confirmado ($)</div><div class="kpi-value success">${fmt(totalPagado)}</div></div>
-  `;
-
-  const card=document.getElementById('cob-tabla-card');card.style.display='block';
-  document.getElementById('cob-tabla-titulo').textContent=
-    `${gestorLabel} · ${fmtDate(ini)}${ini!==fin?' al '+fmtDate(fin):''}`;
-
-  const colorRes=r=>{
-    if(r==='Pagado confirmado') return 'var(--green-l)';
-    if(r==='Prometió pagar'||r==='Pagará hoy') return 'var(--amber-l)';
-    return '';
-  };
-
-  document.getElementById('tbody-cobranza').innerHTML=tablaGest.length?tablaGest.map(g=>{
-    const cl=getCliente(g.clienteId);
-    return `<tr style="background:${colorRes(g.resultado)}">
-      <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${g.clienteId}</span></td>
-      <td>${fmtDate(g.fecha)}</td>
-      <td>${resultadoPill(g.resultado)}</td>
-      <td style="text-align:right;font-weight:600;color:${g.resultado==='Pagado confirmado'?'var(--green)':'var(--amber)'}">${g.compromiso?fmt(g.compromiso):'—'}</td>
-      <td>${fmtDate(g.seguimiento)}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
-      <td style="font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.notas||'—'}</td>
-    </tr>`;
-  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin resultados para este filtro</td></tr>';
-}
-
+// ══════════════════════════════════════════════════════
 // UTILS
-function cerrarModal(id){document.getElementById(id).classList.remove('open')}
-document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+// ══════════════════════════════════════════════════════
+function cerrarModal(id){ document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m) m.classList.remove('open')}));
+document.getElementById('topbar-fecha').textContent = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+
+// Init
+renderHoy();
+renderClientes();
 </script>
 </body></html>
