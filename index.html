@@ -1028,49 +1028,97 @@ function importarAS(input){
       const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
       const maxRow=range.e.r+1;
       const toN=v=>parseFloat(String(v).replace(/,/g,''))||0;
+      const isNum=v=>{try{parseFloat(String(v).replace(/,/g,''));return String(v).trim()!=='';}catch{return false;}};
       const SKIP=new Set(['1','4','9']);
-      const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BNTE|^BCMR|^REN[HG]/i;
+      const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA\s|^EFEC|^PAGO|^15 SEP|^ANTI\s|^CART|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^REN[HG]|^LIANA|^PATRICIA|^EFECT\s|^TRANS\s|^RESTO\s|^MELCHOR|^DEV NOM|^Resto /i;
+      const HDRB=new Set(['Usuario:','Clientes','Concepto','Saldo','Vendedores:','Fecha de referencia','Reporte detallado']);
+      const HDRD=new Set(['Saldo','Documento','Al corriente','1 - 30','31 - 60','61 - 90','91 o más']);
+      // Build page break rows (Usuario: row + next 19)
+      const pbRows=new Set();
+      for(let r=1;r<=maxRow;r++){if(cv('B',r).trim()==='Usuario:'){for(let j=0;j<20;j++)pbRows.add(r+j);}}
       let parsed=[],current=null,fmt=null;
       for(let r=1;r<=maxRow;r++){
         const b=cv('B',r).trim(),c=cv('C',r).trim(),d=cv('D',r).trim();
         const m=cv('M',r).trim(),n=cv('N',r).trim();
-        if(b==='Concepto'||b==='Clientes'||b==='Usuario:') continue;
-        if(b&&/^\d+$/.test(b)&&!SKIP.has(b)&&c&&!DOC.test(c)){
+        // Always skip header rows
+        if(HDRB.has(b)) continue;
+        // Skip page break rows only when no current client
+        const isRealClient=b&&/^\d+$/.test(b)&&!SKIP.has(b);
+        if(pbRows.has(r)&&!current&&!isRealClient&&b!=='MOSTR') continue;
+        if(!b&&!c&&!d) continue;
+        if(!b&&HDRD.has(d)) continue;
+        if(!b&&isNum(d)&&toN(d)>5000000) continue;
+        // FMT1: B=id, C=name
+        if(isRealClient&&c&&!DOC.test(c)){
           if(current)parsed.push(current);
           current={id:b,nombre:c,plazo:m||n||'--',tel:'',es_renta:/RENTA/i.test(m||n),
             saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
           fmt='f1';continue;
         }
-        if(b&&/^\d+$/.test(b)&&!SKIP.has(b)&&d&&!c){
+        // FMT2: B=id, D=name, C empty
+        if(isRealClient&&d&&!c&&!isNum(d)&&!HDRD.has(d)){
           if(current)parsed.push(current);
           const pl=n||m||'--';
           current={id:b,nombre:d,plazo:pl,tel:'',es_renta:/RENTA/i.test(pl),
             saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
           fmt='f2';continue;
         }
-        if(current&&fmt==='f1'&&(b==='1'||b==='4'||b==='9')&&c&&!DOC.test(c)){
-          const alc=toN(cv('H',r)),d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
-          current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});continue;
+        // No-name client (1151,1152,1157 type)
+        if(isRealClient&&!c&&!d){
+          if(current)parsed.push(current);
+          current={id:b,nombre:'Cliente '+b,plazo:n||m||'--',tel:'',es_renta:false,
+            saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
+          fmt='fx';continue;
         }
-        if(current&&fmt==='f2'&&(b==='1'||b==='4'||b==='9')&&c&&!DOC.test(c)){
-          const alc=toN(cv('H',r)),d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
-          current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});continue;
+        // MOSTR
+        if(b==='MOSTR'){
+          if(current)parsed.push(current);
+          current={id:'MOSTR',nombre:'MOSTRADORES',plazo:'CTDO',tel:'',es_renta:false,
+            saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]};
+          fmt='fx';continue;
         }
-        if(current&&fmt==='f1'&&!b&&cv('C',r)!==''){
-          current.saldo_total=toN(cv('C',r));current.al_corriente=toN(cv('H',r));
-          current.dias_1_30=toN(cv('I',r));current.dias_31_60=toN(cv('K',r));
-          current.dias_61_90=toN(cv('N',r));current.dias_91_mas=toN(cv('Q',r));
-          parsed.push(current);current=null;fmt=null;continue;
+        if(!current) continue;
+        // FMT1 invoice: alc=G or H, 1-30=I, 31-60=K, 61-90=N, 91+=O/P/Q
+        if((fmt==='f1'||fmt==='fx')&&SKIP.has(b)&&c&&!DOC.test(c)){
+          const alc=toN(cv('G',r))||toN(cv('H',r));
+          const d130=toN(cv('I',r)),d3160=toN(cv('K',r)),d6190=toN(cv('N',r));
+          const d91=toN(cv('O',r))||toN(cv('P',r))||toN(cv('Q',r));
+          current.facturas.push({doc:c,fecha:cv('F',r),tipo:b,
+            saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
+          continue;
         }
-        if(current&&fmt==='f2'&&!b&&cv('D',r)!==''){
-          current.saldo_total=toN(cv('D',r));current.al_corriente=toN(cv('I',r));
-          current.dias_1_30=toN(cv('J',r));current.dias_31_60=toN(cv('L',r));
-          current.dias_61_90=toN(cv('N',r));current.dias_91_mas=toN(cv('O',r));
-          parsed.push(current);current=null;fmt=null;continue;
+        // FMT2 invoice: alc=H or I, 1-30=J, 31-60=L, 61-90=N, 91+=O or P
+        if((fmt==='f2'||fmt==='fx')&&SKIP.has(b)&&c&&!DOC.test(c)){
+          const alc=toN(cv('H',r))||toN(cv('I',r));
+          const d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r));
+          const d91=toN(cv('O',r))||toN(cv('P',r));
+          current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,
+            saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
+          continue;
+        }
+        // UNIVERSAL SUBTOTAL: B empty, C or D is numeric saldo
+        if(!b&&current){
+          let sv=null,sc=null;
+          if(c&&!HDRD.has(c)&&isNum(c)){sv=toN(c);sc='C';}
+          else if(d&&!HDRD.has(d)&&isNum(d)){sv=toN(d);sc='D';}
+          if(sv!==null){
+            current.saldo_total=sv;
+            if(sc==='C'){
+              current.al_corriente=toN(cv('G',r))||toN(cv('H',r));
+              current.dias_1_30=toN(cv('I',r));current.dias_31_60=toN(cv('K',r));
+              current.dias_61_90=toN(cv('N',r));
+              current.dias_91_mas=toN(cv('O',r))||toN(cv('P',r))||toN(cv('Q',r));
+            } else {
+              current.al_corriente=toN(cv('H',r))||toN(cv('I',r));
+              current.dias_1_30=toN(cv('J',r));current.dias_31_60=toN(cv('L',r));
+              current.dias_61_90=toN(cv('N',r));
+              current.dias_91_mas=toN(cv('O',r))||toN(cv('P',r));
+            }
+            parsed.push(current);current=null;fmt=null;continue;
+          }
         }
       }
       if(current)parsed.push(current);
-      const seen={};parsed.forEach(c=>{seen[c.id]=c});parsed=Object.values(seen);
       const withData=parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
       if(withData.length>0){
         // Save to Firestore in batches
