@@ -193,6 +193,10 @@ tr:hover td{background:#F8FAFC}
         Clientes renta
       </div>
       <div class="nav-section admin-only">Reportes</div>
+      <div class="nav-item admin-only" onclick="showPage('cobranza',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Cobranza
+      </div>
       <div class="nav-item admin-only" onclick="showPage('reporte',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Reporte semanal
@@ -245,6 +249,12 @@ tr:hover td{background:#F8FAFC}
           </div>
           <div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Antigüedad</th><th>Tipo</th><th></th></tr></thead><tbody id="tbody-clientes"></tbody></table></div></div>
         </div>
+        <div id="resumen-filtro" style="display:none;background:#fff;border:1px solid var(--brd);border-radius:10px;padding:12px 16px;margin-top:8px;flex-wrap:wrap;gap:24px">
+          <span style="font-size:13px;color:var(--muted)">Clientes: <strong id="rf-count" style="color:var(--text)">0</strong></span>
+          <span style="font-size:13px;color:var(--muted)">Saldo total: <strong id="rf-saldo" style="color:var(--red)">$0</strong></span>
+          <span style="font-size:13px;color:var(--muted)">Vencido: <strong id="rf-vencido" style="color:var(--red)">$0</strong></span>
+          <span style="font-size:13px;color:var(--muted)">Al corriente: <strong id="rf-corriente" style="color:var(--green)">$0</strong></span>
+        </div>
         <div class="detail-panel" id="detalle-cliente"></div>
       </div>
 
@@ -266,6 +276,35 @@ tr:hover td{background:#F8FAFC}
         <div class="card">
           <div class="card-header"><span class="card-title" style="color:var(--purple)">Clientes de renta — seguimiento mensual</span></div>
           <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- COBRANZA -->
+      <div class="page" id="page-cobranza">
+        <div class="card" style="padding:20px;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:14px">Consulta de cobranza por período</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
+            <div class="form-group" style="margin:0"><label class="form-label">Fecha inicio</label><input type="date" class="form-control" id="cob-inicio" style="width:155px"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Fecha fin</label><input type="date" class="form-control" id="cob-fin" style="width:155px"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Gestor</label><select class="form-control" id="cob-gestor" style="width:200px"><option value="">Todos los gestores</option></select></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Resultado</label><select class="form-control" id="cob-resultado" style="width:180px">
+              <option value="">Compromisos y pagos</option>
+              <option value="pagado">Pagado confirmado</option>
+              <option value="no_contesto">No contestó</option>
+              <option value="todas">Todas las gestiones</option>
+            </select></div>
+            <div style="display:flex;gap:6px;align-items:flex-end">
+              <button class="btn btn-sm" onclick="setRangoHoy()">Hoy</button>
+              <button class="btn btn-sm" onclick="setRangoSemana()">Esta semana</button>
+              <button class="btn btn-sm" onclick="setRangoMes()">Este mes</button>
+              <button class="btn btn-primary btn-sm" onclick="consultarCobranza()">Consultar</button>
+            </div>
+          </div>
+          <div id="cob-kpis" class="kpi-grid" style="margin-bottom:0"></div>
+        </div>
+        <div class="card" id="cob-tabla-card" style="display:none">
+          <div class="card-header"><span class="card-title" id="cob-tabla-titulo">Resultados</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Fecha gestión</th><th>Resultado</th><th>Compromiso ($)</th><th>Fecha compromiso</th><th>Gestor</th><th>Notas</th></tr></thead><tbody id="tbody-cobranza"></tbody></table></div>
         </div>
       </div>
 
@@ -573,6 +612,7 @@ function showPage(id, el){
   if(el) el.classList.add('active');
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
+  if(id==='cobranza'){cargarGestores();setRangoSemana();}
 }
 
 // ══════════════════════════════════════════════════════
@@ -640,6 +680,14 @@ function renderClientes(lista){
   document.getElementById('lista-clientes').style.display='block';
   document.getElementById('detalle-cliente').classList.remove('open');
   lista=[...(lista||CLIENTES)].sort((a,b)=>b.saldo_total-a.saldo_total);
+  const rf=document.getElementById('resumen-filtro');
+  if(rf){
+    rf.style.display='flex';
+    document.getElementById('rf-count').textContent=lista.length;
+    document.getElementById('rf-saldo').textContent=fmt(lista.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0));
+    document.getElementById('rf-vencido').textContent=fmt(lista.reduce((a,c)=>a+c.dias_1_30+c.dias_31_60+c.dias_61_90+c.dias_91_mas,0));
+    document.getElementById('rf-corriente').textContent=fmt(lista.reduce((a,c)=>a+c.al_corriente,0));
+  }
   document.getElementById('tbody-clientes').innerHTML=lista.map(cl=>{
     const est=estatusCliente(cl);
     return `<tr>
@@ -1080,6 +1128,73 @@ function importarClientes(input){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// COBRANZA
+function setRangoHoy(){
+  const h=new Date().toISOString().split('T')[0];
+  document.getElementById('cob-inicio').value=h;
+  document.getElementById('cob-fin').value=h;
+}
+function setRangoSemana(){
+  const hoy=new Date();
+  const lunes=new Date(hoy);lunes.setDate(hoy.getDate()-hoy.getDay()+1);
+  const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
+  document.getElementById('cob-inicio').value=lunes.toISOString().split('T')[0];
+  document.getElementById('cob-fin').value=dom.toISOString().split('T')[0];
+}
+function setRangoMes(){
+  const hoy=new Date();
+  const ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
+  const fin=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+  document.getElementById('cob-inicio').value=ini.toISOString().split('T')[0];
+  document.getElementById('cob-fin').value=fin.toISOString().split('T')[0];
+}
+function cargarGestores(){
+  const sel=document.getElementById('cob-gestor');
+  if(!sel)return;
+  const gestores=[...new Map(GESTIONES.filter(g=>g.gestorNombre).map(g=>[g.gestorId,g.gestorNombre])).entries()];
+  sel.innerHTML='<option value="">Todos los gestores</option>'+gestores.map(([id,nombre])=>`<option value="${id}">${nombre}</option>`).join('');
+}
+function consultarCobranza(){
+  const ini=document.getElementById('cob-inicio').value;
+  const fin=document.getElementById('cob-fin').value;
+  const gestorId=document.getElementById('cob-gestor')?.value||'';
+  const filtroRes=document.getElementById('cob-resultado')?.value||'';
+  if(!ini||!fin){alert('Selecciona un rango de fechas');return;}
+  let base=GESTIONES.filter(g=>g.fecha>=ini&&g.fecha<=fin);
+  if(gestorId)base=base.filter(g=>g.gestorId===gestorId);
+  let tablaGest=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
+  if(filtroRes==='pagado')tablaGest=base.filter(g=>g.resultado==='Pagado confirmado');
+  else if(filtroRes==='no_contesto')tablaGest=base.filter(g=>g.resultado==='No contestó');
+  else if(filtroRes==='todas')tablaGest=base;
+  const compromisos=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
+  const pagados=base.filter(g=>g.resultado==='Pagado confirmado');
+  const totalComp=compromisos.reduce((a,g)=>a+(g.compromiso||0),0);
+  const totalPag=pagados.reduce((a,g)=>a+(g.compromiso||0),0);
+  document.getElementById('cob-kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Gestiones</div><div class="kpi-value">${base.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Clientes contactados</div><div class="kpi-value">${new Set(base.map(g=>g.clienteId)).size}</div></div>
+    <div class="kpi"><div class="kpi-label">Compromisos</div><div class="kpi-value warning">${compromisos.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Monto comprometido</div><div class="kpi-value warning">${fmt(totalComp)}</div></div>
+    <div class="kpi"><div class="kpi-label">Pagado confirmado</div><div class="kpi-value success">${pagados.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Monto confirmado</div><div class="kpi-value success">${fmt(totalPag)}</div></div>
+  `;
+  const card=document.getElementById('cob-tabla-card');card.style.display='block';
+  document.getElementById('cob-tabla-titulo').textContent=`Resultados: ${fmtDate(ini)}${ini!==fin?' al '+fmtDate(fin):''}`;
+  document.getElementById('tbody-cobranza').innerHTML=tablaGest.length?tablaGest.map(g=>{
+    const cl=getCliente(g.clienteId);
+    const bg=g.resultado==='Pagado confirmado'?'background:var(--green-l)':g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'?'background:var(--amber-l)':'';
+    return `<tr style="${bg}">
+      <td><strong>${cl.nombre}</strong></td>
+      <td>${fmtDate(g.fecha)}</td>
+      <td>${resultadoPill(g.resultado)}</td>
+      <td style="text-align:right;font-weight:600">${g.compromiso?fmt(g.compromiso):'—'}</td>
+      <td>${fmtDate(g.seguimiento)}</td>
+      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.notas||'—'}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</td></tr>';
 }
 
 // UTILS
