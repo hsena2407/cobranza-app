@@ -523,6 +523,7 @@ let IS_ADMIN = false;
 let IS_SUPER = false;
 let EMPRESA_ID = null;
 let EMPRESA_NOMBRE = 'Sistema de Cobranza';
+let EMPRESA_ACTIVA = false;
 let CLIENTES = [];
 let GESTIONES = [];
 let RENTA_DATA = {};
@@ -632,7 +633,7 @@ async function doLogout(){
 function empCol(col){ return EMPRESA_ID ? db.collection('empresas').doc(EMPRESA_ID).collection(col) : db.collection(col); }
 
 async function cargarDatos(){
-  if(IS_SUPER && !EMPRESA_ID){ renderSuperAdmin(); return; }
+  if(IS_SUPER && !EMPRESA_ACTIVA){ renderSuperAdmin(); return; }
   const cliSnap = await empCol('clientes').get();
   CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
   const rentaSnap = await empCol('renta_config').get();
@@ -1111,7 +1112,7 @@ async function renderEmpresas(){
   }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Sin empresas registradas</td></tr>';
 }
 async function entrarEmpresa(id, nombre){
-  EMPRESA_ID=id; EMPRESA_NOMBRE=nombre;
+  EMPRESA_ID=id; EMPRESA_NOMBRE=nombre; EMPRESA_ACTIVA=true;
   document.getElementById('topbar-empresa').textContent=nombre;
   await cargarDatos();
   suscribirGestiones();
