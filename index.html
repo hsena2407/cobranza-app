@@ -1119,6 +1119,8 @@ function importarAS(input){
         }
       }
       if(current)parsed.push(current);
+      // Dedup: keep last occurrence of each client ID
+      const seen={};parsed.forEach(cl=>{seen[cl.id]=cl;});parsed=Object.values(seen);
       const withData=parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
       if(withData.length>0){
         // Save to Firestore in batches
