@@ -579,12 +579,12 @@ auth.onAuthStateChanged(async user => {
         rol: 'super', activo: true, creado: new Date()
       });
     }
-    // Load empresa name
-    if(EMPRESA_ID){
+    // Load empresa name only if already active
+    if(EMPRESA_ID && EMPRESA_ACTIVA){
       const empDoc = await db.collection('empresas').doc(EMPRESA_ID).get();
       if(empDoc.exists){ EMPRESA_NOMBRE = empDoc.data().nombre || EMPRESA_NOMBRE; }
     }
-    document.getElementById('topbar-empresa').textContent = EMPRESA_NOMBRE;
+    document.getElementById('topbar-empresa').textContent = IS_SUPER && !EMPRESA_ACTIVA ? 'Sistema de Cobranza' : EMPRESA_NOMBRE;
     if(IS_ADMIN){
       document.getElementById('admin-chip').style.display = 'inline';
       document.getElementById('admin-chip').textContent = IS_SUPER ? 'SUPER' : 'ADMIN';
