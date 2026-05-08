@@ -1028,7 +1028,7 @@ function importarAS(input){
       const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
       const maxRow=range.e.r+1;
       const toN=v=>parseFloat(String(v).replace(/,/g,''))||0;
-      const isNum=v=>{try{parseFloat(String(v).replace(/,/g,''));return String(v).trim()!=='';}catch{return false;}};
+      const isNum=v=>{const n=parseFloat(String(v).replace(/,/g,''));return !isNaN(n)&&String(v).trim()!=='';};
       const SKIP=new Set(['1','4','9']);
       const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA\s|^EFEC|^PAGO|^15 SEP|^ANTI\s|^CART|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^REN[HG]|^LIANA|^PATRICIA|^EFECT\s|^TRANS\s|^RESTO\s|^MELCHOR|^DEV NOM|^Resto /i;
       const HDRB=new Set(['Usuario:','Clientes','Concepto','Saldo','Vendedores:','Fecha de referencia','Reporte detallado']);
