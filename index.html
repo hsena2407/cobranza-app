@@ -883,7 +883,7 @@ function importarAS(input){
 
       const toN = v => parseFloat(String(v).replace(/,/g,''))||0;
       const SKIP = new Set(['1','4','9',1,4,9]);
-      const DOC = /^MTY|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BCMR|^BNMX|^bnte|^spei/i;
+      const DOC = /^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA|^EFEC|^PAGO|^STREAM|^ANTI|^TRANS|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^REN[HG]/i;
       const PLAZO = /\d+\s*D[I]?$|RENTA$|CREDITO$|CTDO$|EQ CR$/i;
 
       let parsed = [];
@@ -928,7 +928,7 @@ function importarAS(input){
 
         // FMT2 invoice: B in {1,4,9}, C=doc
         if(current && fmt==='f2' && (b==='1'||b==='4'||b==='9') && c && !DOC.test(c)){
-          const alc=toN(cv('H',r)),d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r)),d91=toN(cv('P',r));
+          const alc=toN(cv('H',r)),d130=toN(cv('J',r)),d3160=toN(cv('L',r)),d6190=toN(cv('N',r)),d91=toN(cv('O',r));
           current.facturas.push({doc:c,fecha:cv('G',r),tipo:b,
             saldo:alc+d130+d3160+d6190+d91,al_corriente:alc,'1_30':d130,'31_60':d3160,'61_90':d6190,'91_mas':d91});
           continue;
@@ -936,7 +936,7 @@ function importarAS(input){
 
         // FMT1 subtotal: B empty, C=saldo
         if(current && fmt==='f1' && !b && cv('C',r)!==''){
-          current.saldo_total=toN(c);
+          current.saldo_total=toN(cv('C',r));
           current.al_corriente=toN(cv('H',r));
           current.dias_1_30=toN(cv('I',r));
           current.dias_31_60=toN(cv('K',r));
@@ -947,12 +947,12 @@ function importarAS(input){
 
         // FMT2 subtotal: B empty, D=saldo
         if(current && fmt==='f2' && !b && cv('D',r)!==''){
-          current.saldo_total=toN(d);
+          current.saldo_total=toN(cv('D',r));
           current.al_corriente=toN(cv('I',r));
           current.dias_1_30=toN(cv('J',r));
           current.dias_31_60=toN(cv('L',r));
           current.dias_61_90=toN(cv('N',r));
-          current.dias_91_mas=toN(cv('P',r));
+          current.dias_91_mas=toN(cv('O',r));
           parsed.push(current); current=null; fmt=null; continue;
         }
       }
