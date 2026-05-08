@@ -159,7 +159,7 @@ tr:hover td{background:#F8FAFC}
   <div class="topbar">
     <div class="logo">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-      Sistema de Cobranza
+      <span id="topbar-empresa">Sistema de Cobranza</span>
     </div>
     <div class="topbar-right">
       <span class="badge" id="badge-hoy">0 hoy</span>
@@ -207,6 +207,10 @@ tr:hover td{background:#F8FAFC}
         Usuarios
       </div>
       <div class="nav-section">Datos</div>
+      <div class="nav-item super-only" style="display:none" onclick="showPage('empresas',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Empresas
+      </div>
       <div class="nav-item admin-only" onclick="showPage('importar',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Importar AS
@@ -332,6 +336,21 @@ tr:hover td{background:#F8FAFC}
         </div>
       </div>
 
+      <!-- EMPRESAS (super admin) -->
+      <div class="page" id="page-empresas">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="font-size:16px;font-weight:700">Empresas registradas</h2>
+          <button class="btn btn-primary" onclick="abrirModalEmpresa()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nueva empresa
+          </button>
+        </div>
+        <div class="card"><div class="table-wrap">
+          <table><thead><tr><th>ID</th><th>Nombre</th><th>Clientes</th><th>Creada</th><th></th></tr></thead>
+          <tbody id="tbody-empresas"></tbody></table>
+        </div></div>
+      </div>
+
       <!-- IMPORTAR (admin only) -->
       <div class="page" id="page-importar">
         <div class="card" style="padding:24px">
@@ -427,6 +446,25 @@ tr:hover td{background:#F8FAFC}
 </div>
 </div>
 
+<!-- MODAL EMPRESA -->
+<div class="modal-bg" id="modal-empresa">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title">Nueva empresa</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-empresa')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-group"><label class="form-label">ID único (sin espacios, ej: stream_document)</label><input type="text" class="form-control" id="ne-id" placeholder="nombre_empresa"></div>
+    <div class="form-group"><label class="form-label">Nombre completo</label><input type="text" class="form-control" id="ne-nombre" placeholder="Stream Document S.A. de C.V."></div>
+    <div class="login-err" id="ne-err" style="display:none"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-empresa')">Cancelar</button>
+    <button class="btn btn-primary" onclick="crearEmpresa()" id="btn-crear-empresa">Crear empresa</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL USUARIO -->
 <div class="modal-bg" id="modal-usuario">
 <div class="modal">
@@ -441,6 +479,10 @@ tr:hover td{background:#F8FAFC}
     <div class="form-group"><label class="form-label">Nombre completo</label><input type="text" class="form-control" id="nu-nombre" placeholder="Juan García"></div>
     <div class="form-group"><label class="form-label">Correo electrónico</label><input type="email" class="form-control" id="nu-email" placeholder="juan@empresa.com"></div>
     <div class="form-group"><label class="form-label">Contraseña inicial</label><input type="password" class="form-control" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
+    <div class="form-group super-only" id="nu-empresa-grupo" style="display:none">
+      <label class="form-label">Empresa</label>
+      <select class="form-control" id="nu-empresa"></select>
+    </div>
     <div class="form-group">
       <label class="form-label">Rol</label>
       <select class="form-control" id="nu-rol">
@@ -478,6 +520,9 @@ const db = firebase.firestore();
 // ══════════════════════════════════════════════════════
 let CURRENT_USER = null;
 let IS_ADMIN = false;
+let IS_SUPER = false;
+let EMPRESA_ID = null;
+let EMPRESA_NOMBRE = 'Sistema de Cobranza';
 let CLIENTES = [];
 let GESTIONES = [];
 let RENTA_DATA = {};
@@ -521,19 +566,31 @@ auth.onAuthStateChanged(async user => {
     const userDoc = await db.collection('usuarios').doc(user.uid).get();
     if(userDoc.exists){
       const data = userDoc.data();
-      IS_ADMIN = data.rol === 'admin';
+      IS_ADMIN = data.rol === 'admin' || data.rol === 'super';
+      IS_SUPER = data.rol === 'super';
+      EMPRESA_ID = data.empresaId || null;
       document.getElementById('user-name-chip').textContent = data.nombre || user.email;
     } else {
-      // First time — create admin user doc
-      IS_ADMIN = true;
+      // First time — create super admin
+      IS_ADMIN = true; IS_SUPER = true; EMPRESA_ID = null;
       await db.collection('usuarios').doc(user.uid).set({
         email: user.email, nombre: user.email.split('@')[0],
-        rol: 'admin', activo: true, creado: new Date()
+        rol: 'super', activo: true, creado: new Date()
       });
     }
+    // Load empresa name
+    if(EMPRESA_ID){
+      const empDoc = await db.collection('empresas').doc(EMPRESA_ID).get();
+      if(empDoc.exists){ EMPRESA_NOMBRE = empDoc.data().nombre || EMPRESA_NOMBRE; }
+    }
+    document.getElementById('topbar-empresa').textContent = EMPRESA_NOMBRE;
     if(IS_ADMIN){
       document.getElementById('admin-chip').style.display = 'inline';
+      document.getElementById('admin-chip').textContent = IS_SUPER ? 'SUPER' : 'ADMIN';
       document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+    }
+    if(IS_SUPER){
+      document.querySelectorAll('.super-only').forEach(el=>el.style.display='flex');
     }
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -572,16 +629,16 @@ async function doLogout(){
 // ══════════════════════════════════════════════════════
 // DATA — FIRESTORE
 // ══════════════════════════════════════════════════════
+function empCol(col){ return EMPRESA_ID ? db.collection('empresas').doc(EMPRESA_ID).collection(col) : db.collection(col); }
+
 async function cargarDatos(){
-  // Load clientes from Firestore
-  const cliSnap = await db.collection('clientes').get();
+  if(IS_SUPER && !EMPRESA_ID){ renderSuperAdmin(); return; }
+  const cliSnap = await empCol('clientes').get();
   CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
-  // Load renta data
-  const rentaSnap = await db.collection('renta_config').get();
+  const rentaSnap = await empCol('renta_config').get();
   RENTA_DATA = {};
   rentaSnap.docs.forEach(d=>{ RENTA_DATA[d.id] = d.data(); });
-  // Load last import info
-  const metaDoc = await db.collection('meta').doc('importacion').get();
+  const metaDoc = await empCol('meta').doc('importacion').get();
   if(metaDoc.exists){
     document.getElementById('ultima-importacion').textContent = metaDoc.data().texto || '—';
   }
@@ -591,9 +648,8 @@ async function cargarDatos(){
 }
 
 function suscribirGestiones(){
-  // Real-time listener for gestiones
-  let query = db.collection('gestiones').orderBy('fecha','desc').limit(500);
-  // Gestores only see their own
+  if(IS_SUPER && !EMPRESA_ID) return;
+  let query = empCol('gestiones').orderBy('fecha','desc').limit(500);
   if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
     GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
@@ -819,8 +875,8 @@ async function guardarGestion(){
   try{
     const userDoc=await db.collection('usuarios').doc(CURRENT_USER.uid).get();
     const gestorNombre=userDoc.exists?userDoc.data().nombre:CURRENT_USER.email;
-    const gCount=await db.collection('gestiones').get();
-    await db.collection('gestiones').add({
+    const gCount=await empCol('gestiones').get();
+    await empCol('gestiones').add({
       id:'GES-'+String(gCount.size+1).padStart(3,'0'),
       clienteId,
       gestorId:CURRENT_USER.uid,
@@ -889,7 +945,7 @@ function abrirModalRenta(id){
 async function guardarRenta(){
   const id=document.getElementById('mr-id').value;
   const data={monto:parseFloat(document.getElementById('mr-monto').value)||0,vencimiento:document.getElementById('mr-vencimiento').value,notas:document.getElementById('mr-notas').value};
-  await db.collection('renta_config').doc(String(id)).set(data);
+  await empCol('renta_config').doc(String(id)).set(data);
   RENTA_DATA[id]=data;
   cerrarModal('modal-renta');
   renderRenta();
@@ -900,15 +956,23 @@ async function guardarRenta(){
 // USUARIOS (admin)
 // ══════════════════════════════════════════════════════
 async function renderUsuarios(){
-  const snap=await db.collection('usuarios').get();
+  let snap;
+  if(IS_SUPER && !EMPRESA_ID){
+    snap=await db.collection('usuarios').where('rol','!=','super').get();
+  } else {
+    snap=await db.collection('usuarios').where('empresaId','==',EMPRESA_ID).get();
+  }
   document.getElementById('tbody-usuarios').innerHTML=snap.docs.map(d=>{
     const u=d.data();
+    const rolLabel=u.rol==='admin'?'Administrador':u.rol==='super'?'Super':'Gestor';
+    const rolCls=u.rol==='admin'||u.rol==='super'?'pill-blue':'pill-gray';
     return `<tr>
       <td>${u.email}</td><td>${u.nombre||'—'}</td>
-      <td><span class="pill ${u.rol==='admin'?'pill-blue':'pill-gray'}">${u.rol==='admin'?'Administrador':'Gestor'}</span></td>
+      <td>${u.empresaId||'<span style="color:var(--muted)">—</span>'}</td>
+      <td><span class="pill ${rolCls}">${rolLabel}</span></td>
       <td><span class="pill ${u.activo!==false?'pill-green':'pill-red'}">${u.activo!==false?'Activo':'Inactivo'}</span></td>
     </tr>`;
-  }).join('');
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Sin usuarios</td></tr>';
 }
 function abrirModalUsuario(){ document.getElementById('modal-usuario').classList.add('open'); }
 async function crearUsuario(){
@@ -926,7 +990,8 @@ async function crearUsuario(){
     const secondaryApp=firebase.initializeApp(firebaseConfig,'Secondary');
     const secAuth=secondaryApp.auth();
     const cred=await secAuth.createUserWithEmailAndPassword(email,pass);
-    await db.collection('usuarios').doc(cred.user.uid).set({email,nombre,rol,activo:true,creado:new Date()});
+    const nuEmpresaId=IS_SUPER?document.getElementById('nu-empresa').value:EMPRESA_ID;
+    await db.collection('usuarios').doc(cred.user.uid).set({email,nombre,rol,empresaId:nuEmpresaId||null,activo:true,creado:new Date()});
     await secAuth.signOut();
     secondaryApp.delete();
     cerrarModal('modal-usuario');
@@ -990,7 +1055,7 @@ function generarReporte(){
     tr{page-break-inside:avoid}
     a[href]:after{content:none!important}
   }</style></head><body>
-  <div class="hdr"><h1 style="font-size:20px;margin:0 0 6px">REPORTE SEMANAL DE COBRANZA</h1>
+  <div class="hdr"><p style="font-size:11px;margin:0 0 4px;opacity:.7;letter-spacing:1.5px;text-transform:uppercase">${EMPRESA_NOMBRE}</p><h1 style="font-size:20px;margin:0 0 6px">REPORTE SEMANAL DE COBRANZA</h1>
   <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
   <div class="kpis">
     <div class="kpi"><div class="kv">${fmt(saldo)}</div><div class="kl">Saldo por cobrar</div></div>
@@ -1020,6 +1085,75 @@ function generarReporte(){
   win.document.write(html);
   win.document.close();
   win.onload=()=>{win.focus();win.print();};
+}
+
+// ══════════════════════════════════════════════════════
+// SUPER ADMIN — EMPRESAS
+// ══════════════════════════════════════════════════════
+async function renderSuperAdmin(){
+  // Show empresas page
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-empresas').classList.add('active');
+  await renderEmpresas();
+}
+async function renderEmpresas(){
+  const snap=await db.collection('empresas').orderBy('nombre').get();
+  document.getElementById('tbody-empresas').innerHTML=snap.docs.map(d=>{
+    const e=d.data();
+    const fecha=e.creado?.toDate?e.creado.toDate().toLocaleDateString('es-MX'):'—';
+    return `<tr>
+      <td style="color:var(--muted);font-size:11px">${d.id}</td>
+      <td><strong>${e.nombre}</strong></td>
+      <td style="text-align:center">${e.totalClientes||'—'}</td>
+      <td>${fecha}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="entrarEmpresa('${d.id}','${e.nombre}')">Entrar</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">Sin empresas registradas</td></tr>';
+}
+async function entrarEmpresa(id, nombre){
+  EMPRESA_ID=id; EMPRESA_NOMBRE=nombre;
+  document.getElementById('topbar-empresa').textContent=nombre;
+  await cargarDatos();
+  suscribirGestiones();
+  showPage('hoy', document.querySelector('.nav-item'));
+}
+function abrirModalEmpresa(){
+  document.getElementById('ne-id').value='';
+  document.getElementById('ne-nombre').value='';
+  document.getElementById('ne-err').style.display='none';
+  document.getElementById('modal-empresa').classList.add('open');
+}
+async function crearEmpresa(){
+  const id=document.getElementById('ne-id').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const nombre=document.getElementById('ne-nombre').value.trim();
+  const err=document.getElementById('ne-err');
+  err.style.display='none';
+  if(!id||!nombre){err.textContent='Completa todos los campos';err.style.display='block';return;}
+  const btn=document.getElementById('btn-crear-empresa');
+  btn.innerHTML='<span class="spinner"></span> Creando...';btn.disabled=true;
+  try{
+    const ref=db.collection('empresas').doc(id);
+    const exists=await ref.get();
+    if(exists.exists){err.textContent='Ya existe una empresa con ese ID';err.style.display='block';btn.innerHTML='Crear empresa';btn.disabled=false;return;}
+    await ref.set({nombre,creado:firebase.firestore.FieldValue.serverTimestamp(),totalClientes:0});
+    cerrarModal('modal-empresa');
+    await renderEmpresas();
+    // Populate empresa selector in usuario modal
+    await cargarEmpresasSelector();
+    alert('Empresa "'+nombre+'" creada. Ahora puedes crear usuarios y asignarlos a esta empresa.');
+  }catch(e){err.textContent='Error: '+e.message;err.style.display='block';}
+  btn.innerHTML='Crear empresa';btn.disabled=false;
+}
+async function cargarEmpresasSelector(){
+  if(!IS_SUPER) return;
+  const snap=await db.collection('empresas').orderBy('nombre').get();
+  const sel=document.getElementById('nu-empresa');
+  if(!sel) return;
+  sel.innerHTML=snap.docs.map(d=>`<option value="${d.id}">${d.data().nombre}</option>`).join('');
+}
+function abrirModalUsuario(){
+  if(IS_SUPER){ cargarEmpresasSelector(); }
+  document.getElementById('modal-usuario').classList.add('open');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1139,7 +1273,7 @@ function importarAS(input){
         for(let i=0;i<withData.length;i+=batchSize){
           const batch=db.batch();
           withData.slice(i,i+batchSize).forEach(cl=>{
-            const ref=db.collection('clientes').doc(String(cl.id));
+            const ref=empCol('clientes').doc(String(cl.id));
             batch.set(ref,cl);
           });
           await batch.commit();
