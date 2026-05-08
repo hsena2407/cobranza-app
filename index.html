@@ -317,8 +317,8 @@ tr:hover td{background:#F8FAFC}
         <div class="card" style="padding:20px">
           <div style="font-size:14px;font-weight:600;margin-bottom:16px">Reporte semanal de cobranza</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-            <div class="form-group" style="margin:0"><label class="form-label">Semana inicio</label><input type="date" class="form-control" id="rep-inicio" style="width:160px"></div>
-            <div class="form-group" style="margin:0"><label class="form-label">Semana fin</label><input type="date" class="form-control" id="rep-fin" style="width:160px"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Semana inicio</label><input type="date" class="form-control" id="rep-inicio" style="width:160px" onchange="actualizarPreviewReporte()"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Semana fin</label><input type="date" class="form-control" id="rep-fin" style="width:160px" onchange="actualizarPreviewReporte()"></div>
             <div style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="generarReporte()">Generar y descargar</button></div>
           </div>
           <div id="preview-reporte" style="background:var(--gray);border-radius:8px;padding:16px"></div>
@@ -1124,13 +1124,25 @@ function initReporte(){
   const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
   document.getElementById('rep-inicio').value=lunes.toISOString().split('T')[0];
   document.getElementById('rep-fin').value=dom.toISOString().split('T')[0];
-  const saldo=CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  actualizarPreviewReporte();
+}
+function actualizarPreviewReporte(){
+  const inicio=document.getElementById('rep-inicio').value;
+  const fin=document.getElementById('rep-fin').value;
+  const vencido=CLIENTES.reduce((a,c)=>a+(c.dias_31_60||0)+(c.dias_61_90||0)+(c.dias_91_mas||0),0);
+  const venceSemana=CLIENTES.reduce((a,c)=>a+(c.dias_1_30||0),0);
+  const totalGestionar=vencido+venceSemana;
+  const gestSem=GESTIONES.filter(g=>g.fecha>=inicio&&g.fecha<=fin);
+  const totalCompromisos=gestSem.reduce((a,g)=>a+(g.compromiso||0),0);
   const criticos=CLIENTES.filter(c=>c.dias_91_mas>0);
   document.getElementById('preview-reporte').innerHTML=`
-    <div class="kpi-grid">
-      <div class="kpi"><div class="kpi-label">Saldo por cobrar</div><div class="kpi-value danger" style="font-size:18px">${fmt(saldo)}</div></div>
-      <div class="kpi"><div class="kpi-label">Total gestiones</div><div class="kpi-value" style="font-size:18px">${GESTIONES.length}</div></div>
-      <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger" style="font-size:18px">${criticos.length}</div></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+      <div class="kpi"><div class="kpi-label">Vencido arrastrado</div><div class="kpi-value danger" style="font-size:16px">${fmt(vencido)}</div></div>
+      <div class="kpi"><div class="kpi-label">Vence esta semana (1-30d)</div><div class="kpi-value warning" style="font-size:16px">${fmt(venceSemana)}</div></div>
+      <div class="kpi" style="border:2px solid var(--blue)"><div class="kpi-label">Total a gestionar</div><div class="kpi-value" style="font-size:16px;color:var(--blue)">${fmt(totalGestionar)}</div></div>
+      <div class="kpi"><div class="kpi-label">Compromisos semana</div><div class="kpi-value success" style="font-size:16px">${fmt(totalCompromisos)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gestiones realizadas</div><div class="kpi-value" style="font-size:16px">${gestSem.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger" style="font-size:16px">${criticos.length}</div></div>
     </div>`;
 }
 function generarReporte(){
@@ -1138,8 +1150,13 @@ function generarReporte(){
   const fin=document.getElementById('rep-fin').value;
   const gestSem=GESTIONES.filter(g=>g.fecha>=inicio&&g.fecha<=fin);
   const contactados=[...new Set(gestSem.map(g=>g.clienteId))].map(id=>getCliente(id));
-  const compromisos=GESTIONES.filter(g=>g.resultado==='Prometió pagar'&&g.seguimiento>=TODAY);
-  const saldo=CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
+  const compromisos=gestSem.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy');
+  const totalCompromisos=compromisos.reduce((a,g)=>a+(g.compromiso||0),0);
+  const pagados=gestSem.filter(g=>g.resultado==='Pagado confirmado');
+  const totalPagado=pagados.reduce((a,g)=>a+(g.compromiso||0),0);
+  const vencido=CLIENTES.reduce((a,c)=>a+(c.dias_31_60||0)+(c.dias_61_90||0)+(c.dias_91_mas||0),0);
+  const venceSemana=CLIENTES.reduce((a,c)=>a+(c.dias_1_30||0),0);
+  const totalGestionar=vencido+venceSemana;
   const criticos=CLIENTES.filter(c=>c.dias_91_mas>0).slice(0,10);
   const fmtD=d=>new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Cobranza</title>
@@ -1165,11 +1182,13 @@ function generarReporte(){
   }</style></head><body>
   <div class="hdr"><p style="font-size:28px;margin:0 0 4px;font-weight:700;letter-spacing:1px;text-transform:uppercase">${EMPRESA_NOMBRE}</p><h1 style="font-size:16px;margin:0 0 6px;font-weight:400;opacity:.9">REPORTE SEMANAL DE COBRANZA</h1>
   <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
-  <div class="kpis">
-    <div class="kpi"><div class="kv">${fmt(saldo)}</div><div class="kl">Saldo por cobrar</div></div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi" style="background:#FCE4D6"><div class="kv" style="color:#C0392B">${fmt(vencido)}</div><div class="kl">Vencido arrastrado</div></div>
+    <div class="kpi" style="background:#FEF9E7"><div class="kv" style="color:#E67E22">${fmt(venceSemana)}</div><div class="kl">Vence esta semana (1-30d)</div></div>
+    <div class="kpi" style="background:#EBF3FB;border:2px solid #2E75B6"><div class="kv" style="color:#1F3864">${fmt(totalGestionar)}</div><div class="kl" style="font-weight:700">TOTAL A GESTIONAR</div></div>
+    <div class="kpi" style="background:#D5F5E3"><div class="kv" style="color:#1E8449">${fmt(totalCompromisos)}</div><div class="kl">Compromisos capturados</div></div>
+    <div class="kpi" style="background:#D5F5E3"><div class="kv" style="color:#1E8449">${fmt(totalPagado)}</div><div class="kl">Pagado confirmado</div></div>
     <div class="kpi"><div class="kv">${gestSem.length}</div><div class="kl">Gestiones realizadas</div></div>
-    <div class="kpi"><div class="kv">${compromisos.length}</div><div class="kl">Compromisos activos</div></div>
-    <div class="kpi"><div class="kv">${criticos.length}</div><div class="kl">Clientes críticos 91+</div></div>
   </div>
   <h2>CLIENTES CONTACTADOS</h2>
   <table><thead><tr><th>Cliente</th><th>Contactos</th><th>Gestor</th><th>Último resultado</th><th>Próx. seguimiento</th></tr></thead><tbody>
@@ -1183,9 +1202,22 @@ function generarReporte(){
   <table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo vencido</th></tr></thead><tbody>
   ${criticos.map(c=>`<tr><td>${c.id}</td><td>${c.nombre}</td><td>${c.tel||'—'}</td><td class="red">${fmt(c.dias_91_mas)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center">Sin clientes críticos</td></tr>'}
   </tbody></table>
-  <h2>COMPROMISOS DE PAGO ACTIVOS</h2>
-  <table><thead><tr><th>Cliente</th><th>Gestor</th><th>Resultado</th><th>Fecha compromiso</th><th>Notas</th></tr></thead><tbody>
-  ${compromisos.slice(0,10).map(g=>{const cl=getCliente(g.clienteId);return`<tr><td>${cl.nombre}</td><td>${g.gestorNombre||'—'}</td><td>${g.resultado}</td><td>${g.seguimiento?fmtD(g.seguimiento):'—'}</td><td>${g.notas||'—'}</td></tr>`}).join('')||'<tr><td colspan="5" style="text-align:center">Sin compromisos</td></tr>'}
+  <h2>COMPROMISOS DE PAGO CAPTURADOS</h2>
+  <table><thead><tr><th>Cliente</th><th>Facturas comprometidas</th><th>Monto</th><th>Gestor</th><th>Seguimiento</th></tr></thead><tbody>
+  ${compromisos.map(g=>{
+    const cl=getCliente(g.clienteId);
+    const facts=(g.facturasComprometidas||[]).map(f=>f.doc).join(', ')||'—';
+    const abonoNote=g.esAbono&&g.montoAbono?` (abono $${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2})})`: '';
+    return`<tr><td>${cl.nombre}</td><td style="font-size:10px">${facts}${abonoNote}</td><td class="red" style="text-align:right">${g.compromiso>0?fmt(g.compromiso):'—'}</td><td>${g.gestorNombre||'—'}</td><td>${g.seguimiento?fmtD(g.seguimiento):'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center">Sin compromisos esta semana</td></tr>'}
+  </tbody></table>
+  <h2>PAGOS CONFIRMADOS</h2>
+  <table><thead><tr><th>Cliente</th><th>Facturas</th><th>Monto</th><th>Gestor</th><th>Notas</th></tr></thead><tbody>
+  ${pagados.map(g=>{
+    const cl=getCliente(g.clienteId);
+    const facts=(g.facturasComprometidas||[]).map(f=>f.doc).join(', ')||'—';
+    return`<tr><td>${cl.nombre}</td><td style="font-size:10px">${facts}</td><td style="text-align:right;color:#1E8449;font-weight:bold">${g.compromiso>0?fmt(g.compromiso):'—'}</td><td>${g.gestorNombre||'—'}</td><td>${g.notas||'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center">Sin pagos confirmados esta semana</td></tr>'}
   </tbody></table>
   <div class="footer">Reporte generado automáticamente — Confidencial</div>
   </body></html>`;
