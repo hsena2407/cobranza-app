@@ -579,33 +579,46 @@ async function doLogout(){
 // DATA — FIRESTORE
 // ══════════════════════════════════════════════════════
 async function cargarDatos(){
-  // Load clientes from Firestore
-  const cliSnap = await db.collection('clientes').get();
-  CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
-  // Load renta data
-  const rentaSnap = await db.collection('renta_config').get();
-  RENTA_DATA = {};
-  rentaSnap.docs.forEach(d=>{ RENTA_DATA[d.id] = d.data(); });
-  // Load last import info
-  const metaDoc = await db.collection('meta').doc('importacion').get();
-  if(metaDoc.exists){
-    document.getElementById('ultima-importacion').textContent = metaDoc.data().texto || '—';
+  try{
+    const cliSnap = await db.collection('clientes').get();
+    CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){
+    console.warn('No se pudieron cargar clientes:', e.message);
+    CLIENTES = [];
   }
+  try{
+    const rentaSnap = await db.collection('renta_config').get();
+    RENTA_DATA = {};
+    rentaSnap.docs.forEach(d=>{ RENTA_DATA[d.id] = d.data(); });
+  }catch(e){ RENTA_DATA = {}; }
+  try{
+    const metaDoc = await db.collection('meta').doc('importacion').get();
+    if(metaDoc.exists){
+      const el=document.getElementById('ultima-importacion');
+      if(el) el.textContent = metaDoc.data().texto || '—';
+    }
+  }catch(e){}
   renderHoy();
   renderClientes();
   renderRenta();
 }
 
 function suscribirGestiones(){
-  // Real-time listener for gestiones
-  let query = db.collection('gestiones').orderBy('fecha','desc').limit(500);
-  // Gestores only see their own
-  if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
-  UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
-    GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
-    renderHoy();
-    renderGestiones();
-  });
+  try{
+    let query = db.collection('gestiones').orderBy('fecha','desc').limit(500);
+    if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
+    UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
+      GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
+      renderHoy();
+      renderGestiones();
+    }, err => {
+      console.warn('Error al cargar gestiones:', err.message);
+      // Show instructions to fix rules
+      if(err.code === 'permission-denied'){
+        document.getElementById('page-hoy').innerHTML += '<div style="background:#FCE4D6;border-radius:8px;padding:14px;margin:16px 0;font-size:13px;color:#C0392B"><strong>⚠️ Acción requerida:</strong> Las reglas de Firestore están bloqueando el acceso. Ve a Firebase → Firestore → Reglas y actualízalas.</div>';
+      }
+    });
+  }catch(e){ console.warn('suscribirGestiones error:', e); }
 }
 
 // ══════════════════════════════════════════════════════
