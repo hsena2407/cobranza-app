@@ -1097,7 +1097,7 @@ async function renderSuperAdmin(){
   await renderEmpresas();
 }
 async function renderEmpresas(){
-  const snap=await db.collection('empresas').orderBy('nombre').get();
+  const snap=await db.collection('empresas').get();
   document.getElementById('tbody-empresas').innerHTML=snap.docs.map(d=>{
     const e=d.data();
     const fecha=e.creado?.toDate?e.creado.toDate().toLocaleDateString('es-MX'):'—';
@@ -1146,7 +1146,7 @@ async function crearEmpresa(){
 }
 async function cargarEmpresasSelector(){
   if(!IS_SUPER) return;
-  const snap=await db.collection('empresas').orderBy('nombre').get();
+  const snap=await db.collection('empresas').get();
   const sel=document.getElementById('nu-empresa');
   if(!sel) return;
   sel.innerHTML=snap.docs.map(d=>`<option value="${d.id}">${d.data().nombre}</option>`).join('');
