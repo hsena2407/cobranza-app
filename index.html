@@ -384,16 +384,18 @@ tr:hover td{background:#F8FAFC}
 
 <!-- MODAL GESTIÓN -->
 <div class="modal-bg" id="modal-gestion">
-<div class="modal">
+<div class="modal" style="width:600px">
   <div class="modal-header">
-    <span class="modal-title">Registrar llamada / contacto</span>
+    <span class="modal-title">Registrar gestión de cobranza</span>
     <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-gestion')">✕</button>
   </div>
   <div class="modal-body">
+    <!-- Cliente -->
     <div class="form-group">
       <label class="form-label">Cliente</label>
-      <select class="form-control" id="mg-cliente"><option value="">Selecciona...</option></select>
+      <select class="form-control" id="mg-cliente" onchange="cargarFacturasModal(this.value)"><option value="">Selecciona un cliente...</option></select>
     </div>
+    <!-- Fecha / Hora / Medio / Contacto -->
     <div class="form-row">
       <div class="form-group"><label class="form-label">Fecha</label><input type="date" class="form-control" id="mg-fecha"></div>
       <div class="form-group"><label class="form-label">Hora</label><input type="time" class="form-control" id="mg-hora"></div>
@@ -405,23 +407,46 @@ tr:hover td{background:#F8FAFC}
       </div>
       <div class="form-group"><label class="form-label">Contacto que atendió</label><input type="text" class="form-control" id="mg-contacto" placeholder="Nombre"></div>
     </div>
+    <!-- Resultado -->
     <div class="form-group">
       <label class="form-label">Resultado</label>
-      <select class="form-control" id="mg-resultado">
+      <select class="form-control" id="mg-resultado" onchange="toggleFacturasPanel(this.value)">
         <option>Prometió pagar</option><option>Pagará hoy</option><option>No contestó</option>
         <option>Número equivocado</option><option>Negó deuda</option><option>Solicitó espera</option>
         <option>Pagado confirmado</option><option>Otro</option>
       </select>
     </div>
+    <!-- PANEL FACTURAS — visible cuando prometió pagar o pagó -->
+    <div id="panel-facturas" style="display:none;background:#F8FAFC;border:1px solid #BDD7EE;border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:#1F3864;margin-bottom:8px">Facturas pendientes — selecciona las que comprometió</div>
+      <div id="lista-facturas-modal" style="max-height:180px;overflow-y:auto"></div>
+      <div style="border-top:1px solid #BDD7EE;margin-top:10px;padding-top:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:600;color:#1F3864">¿Abono parcial?</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" id="mg-es-abono" onchange="toggleAbono(this.checked)"> Capturar abono
+          </label>
+        </div>
+        <div id="panel-abono" style="display:none;margin-bottom:8px">
+          <input type="number" class="form-control" id="mg-monto-abono" placeholder="Monto del abono $" oninput="calcularAbonoFacturas()" style="margin-bottom:6px">
+          <div id="abono-detalle" style="font-size:11px;color:#6B7280"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:#6B7280">Total comprometido:</span>
+          <strong id="mg-total-compromiso" style="font-size:15px;color:#1F3864">$0</strong>
+        </div>
+      </div>
+    </div>
+    <!-- Seguimiento / Notas -->
     <div class="form-row">
       <div class="form-group"><label class="form-label">Próximo seguimiento</label><input type="date" class="form-control" id="mg-seguimiento"></div>
-      <div class="form-group"><label class="form-label">Compromiso de pago ($)</label><input type="number" class="form-control" id="mg-compromiso" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Compromiso total ($)</label><input type="number" class="form-control" id="mg-compromiso" placeholder="0" readonly style="background:#F4F6F8"></div>
     </div>
-    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-control" id="mg-notas" rows="3" placeholder="Observaciones..."></textarea></div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-control" id="mg-notas" rows="2" placeholder="Observaciones..."></textarea></div>
   </div>
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-gestion')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarGestion()" id="btn-guardar-gestion">Guardar</button>
+    <button class="btn btn-primary" onclick="guardarGestion()" id="btn-guardar-gestion">Guardar gestión</button>
   </div>
 </div>
 </div>
@@ -815,14 +840,22 @@ function verCliente(id){
     <div class="card">
       <div class="card-header"><span class="card-title">Historial de gestiones</span></div>
       ${gests.length?`<div class="table-wrap"><table>
-        <thead><tr><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead>
-        <tbody>${gests.map(g=>`<tr>
-          <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
+        <thead><tr><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Facturas comprometidas</th><th>Compromiso</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead>
+        <tbody>${gests.map(g=>{
+          const facDetail=(g.facturasComprometidas||[]).length>0
+            ?g.facturasComprometidas.map(f=>`<div style="font-size:11px;white-space:nowrap"><span style="font-weight:500">${f.doc}</span> <span style="color:var(--muted)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>`).join('')
+            :'<span style="color:var(--muted);font-size:11px">—</span>';
+          const abonoNote=g.esAbono&&g.montoAbono?`<div style="font-size:10px;color:var(--amber)">Abono: $${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2})}</div>`:'';
+          return `<tr>
+          <td>${fmtDate(g.fecha)}<br><span style="font-size:10px;color:var(--muted)">${g.hora||''}</span></td>
+          <td>${g.medio}</td>
           <td>${resultadoPill(g.resultado)}</td>
+          <td>${facDetail}${abonoNote}</td>
+          <td style="text-align:right;font-weight:600;color:var(--red)">${g.compromiso>0?fmt(g.compromiso):'—'}</td>
           <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
           <td style="${g.seguimiento<TODAY?'color:var(--red)':g.seguimiento===TODAY?'color:var(--amber)':''}">${fmtDate(g.seguimiento)}</td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
-        </tr>`).join('')}</tbody>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+        </tr>`}).join('')}</tbody>
       </table></div>`:'<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
     </div>
   `;
@@ -865,8 +898,75 @@ function abrirModalGestion(clienteId){
   document.getElementById('mg-fecha').value=TODAY;
   document.getElementById('mg-hora').value=new Date().toTimeString().slice(0,5);
   ['mg-seguimiento','mg-notas','mg-contacto'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('mg-compromiso').value='';
+  document.getElementById('mg-compromiso').value='0';
+  document.getElementById('mg-resultado').value='Prometió pagar';
+  document.getElementById('mg-es-abono').checked=false;
+  document.getElementById('panel-abono').style.display='none';
+  document.getElementById('mg-monto-abono') && (document.getElementById('mg-monto-abono').value='');
+  document.getElementById('mg-total-compromiso').textContent='$0';
+  if(clienteId) cargarFacturasModal(clienteId);
+  else { document.getElementById('panel-facturas').style.display='none'; document.getElementById('lista-facturas-modal').innerHTML=''; }
   document.getElementById('modal-gestion').classList.add('open');
+}
+
+function toggleFacturasPanel(resultado){
+  const mostrar = resultado==='Prometió pagar'||resultado==='Pagará hoy'||resultado==='Pagado confirmado';
+  document.getElementById('panel-facturas').style.display = mostrar ? 'block' : 'none';
+  if(!mostrar){ document.getElementById('mg-compromiso').value='0'; document.getElementById('mg-total-compromiso').textContent='$0'; }
+}
+
+function cargarFacturasModal(clienteId){
+  const cl = CLIENTES.find(c=>String(c.id)===String(clienteId));
+  const resultado = document.getElementById('mg-resultado').value;
+  const mostrar = resultado==='Prometió pagar'||resultado==='Pagará hoy'||resultado==='Pagado confirmado';
+  document.getElementById('panel-facturas').style.display = cl && (cl.facturas||[]).filter(f=>f.saldo>0).length > 0 && mostrar ? 'block' : 'none';
+  if(!cl) return;
+  const facts = (cl.facturas||[]).filter(f=>f.saldo>0).sort((a,b)=>a.fecha>b.fecha?1:-1);
+  document.getElementById('lista-facturas-modal').innerHTML = facts.length===0
+    ? '<p style="font-size:12px;color:var(--muted)">Sin facturas pendientes</p>'
+    : facts.map(f=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #EBF3FB;cursor:pointer;font-size:12px">
+        <input type="checkbox" class="fact-check" data-doc="${f.doc}" data-saldo="${f.saldo}" onchange="recalcularCompromiso()">
+        <span style="flex:1;font-weight:500">${f.doc}</span>
+        <span style="color:var(--muted)">${f.fecha||''}</span>
+        <span style="font-weight:600;color:var(--red);min-width:80px;text-align:right">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+      </label>`).join('');
+  recalcularCompromiso();
+}
+
+function recalcularCompromiso(){
+  const checks = document.querySelectorAll('.fact-check:checked');
+  const total = [...checks].reduce((a,c)=>a+parseFloat(c.dataset.saldo||0),0);
+  document.getElementById('mg-es-abono').checked=false;
+  document.getElementById('panel-abono').style.display='none';
+  document.getElementById('mg-monto-abono').value='';
+  document.getElementById('abono-detalle').innerHTML='';
+  document.getElementById('mg-compromiso').value=total.toFixed(2);
+  document.getElementById('mg-total-compromiso').textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function toggleAbono(checked){
+  document.getElementById('panel-abono').style.display = checked ? 'block' : 'none';
+  if(!checked){ document.getElementById('mg-monto-abono').value=''; calcularAbonoFacturas(); }
+}
+
+function calcularAbonoFacturas(){
+  let abono = parseFloat(document.getElementById('mg-monto-abono').value)||0;
+  if(abono<=0){ document.getElementById('abono-detalle').innerHTML=''; document.getElementById('mg-compromiso').value='0'; document.getElementById('mg-total-compromiso').textContent='$0'; return; }
+  // Get checked facturas sorted by date (oldest first)
+  const checks = [...document.querySelectorAll('.fact-check:checked')].sort((a,b)=>a.dataset.doc>b.dataset.doc?1:-1);
+  let resto=abono, detalle=[], total=0;
+  checks.forEach(c=>{
+    const saldo=parseFloat(c.dataset.saldo||0);
+    if(resto<=0){return;}
+    const aplicado=Math.min(saldo,resto);
+    resto-=aplicado; total+=aplicado;
+    detalle.push(`<span style="color:var(--green)">✓ ${c.dataset.doc}: $${aplicado.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>`);
+  });
+  if(resto>0) detalle.push(`<span style="color:var(--amber)">Sobrante sin aplicar: $${resto.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>`);
+  document.getElementById('abono-detalle').innerHTML=detalle.join('<br>');
+  document.getElementById('mg-compromiso').value=total.toFixed(2);
+  document.getElementById('mg-total-compromiso').textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 async function guardarGestion(){
   const clienteId=document.getElementById('mg-cliente').value;
@@ -877,6 +977,10 @@ async function guardarGestion(){
     const userDoc=await db.collection('usuarios').doc(CURRENT_USER.uid).get();
     const gestorNombre=userDoc.exists?userDoc.data().nombre:CURRENT_USER.email;
     const gCount=await empCol('gestiones').get();
+    // Capture selected facturas detail
+    const facturasComprometidas=[...document.querySelectorAll('.fact-check:checked')].map(c=>({doc:c.dataset.doc,saldo:parseFloat(c.dataset.saldo||0)}));
+    const esAbono=document.getElementById('mg-es-abono').checked;
+    const montoAbono=parseFloat(document.getElementById('mg-monto-abono')?.value)||0;
     await empCol('gestiones').add({
       id:'GES-'+String(gCount.size+1).padStart(3,'0'),
       clienteId,
@@ -889,6 +993,9 @@ async function guardarGestion(){
       resultado:document.getElementById('mg-resultado').value,
       seguimiento:document.getElementById('mg-seguimiento').value,
       compromiso:parseFloat(document.getElementById('mg-compromiso').value)||0,
+      facturasComprometidas,
+      esAbono,
+      montoAbono: esAbono ? montoAbono : 0,
       notas:document.getElementById('mg-notas').value,
       creado:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1056,7 +1163,7 @@ function generarReporte(){
     tr{page-break-inside:avoid}
     a[href]:after{content:none!important}
   }</style></head><body>
-  <div class="hdr"><p style="font-size:11px;margin:0 0 4px;opacity:.7;letter-spacing:1.5px;text-transform:uppercase">${EMPRESA_NOMBRE}</p><h1 style="font-size:20px;margin:0 0 6px">REPORTE SEMANAL DE COBRANZA</h1>
+  <div class="hdr"><p style="font-size:28px;margin:0 0 4px;font-weight:700;letter-spacing:1px;text-transform:uppercase">${EMPRESA_NOMBRE}</p><h1 style="font-size:16px;margin:0 0 6px;font-weight:400;opacity:.9">REPORTE SEMANAL DE COBRANZA</h1>
   <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
   <div class="kpis">
     <div class="kpi"><div class="kv">${fmt(saldo)}</div><div class="kl">Saldo por cobrar</div></div>
