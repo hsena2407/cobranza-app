@@ -704,7 +704,9 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY);
+  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
+  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
+  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
   const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
@@ -898,7 +900,17 @@ function abrirModalGestion(clienteId){
   sel.innerHTML='<option value="">Selecciona un cliente...</option>'+
     [...CLIENTES].sort((a,b)=>a.nombre.localeCompare(b.nombre))
     .map(c=>`<option value="${c.id}" ${String(c.id)==String(clienteId)?'selected':''}>${c.nombre}</option>`).join('');
-  document.getElementById('mg-fecha').value=TODAY;
+  const fechaInput=document.getElementById('mg-fecha');
+  fechaInput.value=TODAY;
+  if(IS_ADMIN){
+    fechaInput.removeAttribute('readonly');
+    fechaInput.style.background='';
+    fechaInput.title='';
+  } else {
+    fechaInput.setAttribute('readonly','readonly');
+    fechaInput.style.background='#F4F6F8';
+    fechaInput.title='Solo el administrador puede cambiar la fecha';
+  }
   document.getElementById('mg-hora').value=new Date().toTimeString().slice(0,5);
   ['mg-seguimiento','mg-notas','mg-contacto','mg-cliente-input'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mg-compromiso').value='0';
