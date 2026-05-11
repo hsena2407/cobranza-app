@@ -661,7 +661,7 @@ async function doLogout(){
 function empCol(col){ return EMPRESA_ID ? db.collection('empresas').doc(EMPRESA_ID).collection(col) : db.collection(col); }
 
 async function cargarDatos(){
-  if(IS_SUPER && !EMPRESA_ACTIVA){ renderSuperAdmin(); return; }
+  if(!EMPRESA_ACTIVA){ renderSuperAdmin(); return; }
   const cliSnap = await empCol('clientes').get();
   CLIENTES = cliSnap.docs.map(d=>({id:d.id,...d.data()}));
   const rentaSnap = await empCol('renta_config').get();
@@ -677,7 +677,7 @@ async function cargarDatos(){
 }
 
 function suscribirGestiones(){
-  if(IS_SUPER && !EMPRESA_ID) return;
+  if(!EMPRESA_ACTIVA) return;
   let query = empCol('gestiones').orderBy('fecha','desc').limit(500);
   if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
@@ -1282,7 +1282,15 @@ async function renderSuperAdmin(){
   await renderEmpresas();
 }
 async function renderEmpresas(){
-  const snap=await db.collection('empresas').get();
+  let snap;
+  if(IS_SUPER){
+    snap=await db.collection('empresas').get();
+  } else {
+    // Non-super: only show their assigned empresa
+    const empRef=db.collection('empresas').doc(EMPRESA_ID);
+    const empDoc=await empRef.get();
+    snap={ docs: empDoc.exists ? [empDoc] : [] };
+  }
   document.getElementById('tbody-empresas').innerHTML=snap.docs.map(d=>{
     const e=d.data();
     const fecha=e.creado?.toDate?e.creado.toDate().toLocaleDateString('es-MX'):'—';
