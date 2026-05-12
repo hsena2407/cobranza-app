@@ -406,7 +406,7 @@ tr:hover td{background:#F8FAFC}
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Medio</label>
-        <select class="form-control" id="mg-medio"><option>Llamada</option><option>WhatsApp</option><option>Email</option><option>Visita</option><option>Buzón de voz</option></select>
+        <select class="form-control" id="mg-medio"><option>Llamada</option><option>WhatsApp</option><option>Email</option><option>Visita</option><option>Buzón de voz</option><option>Portal web</option></select>
       </div>
       <div class="form-group"><label class="form-label">Contacto que atendió</label><input type="text" class="form-control" id="mg-contacto" placeholder="Nombre"></div>
     </div>
@@ -678,10 +678,15 @@ async function cargarDatos(){
 
 function suscribirGestiones(){
   if(!EMPRESA_ACTIVA) return;
-  let query = empCol('gestiones').orderBy('fecha','desc').limit(500);
-  if(!IS_ADMIN){ query = query.where('gestorId','==',CURRENT_USER.uid); }
+  let query;
+  if(IS_ADMIN){
+    query = empCol('gestiones').orderBy('fecha','desc').limit(500);
+  } else {
+    // Gestores: no orderBy to avoid composite index requirement
+    query = empCol('gestiones').where('gestorId','==',CURRENT_USER.uid).limit(500);
+  }
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
-    GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
+    GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||''); });
     renderHoy();
     renderGestiones();
   });
@@ -1367,7 +1372,7 @@ function importarAS(input){
       const toN=v=>parseFloat(String(v).replace(/,/g,''))||0;
       const isNum=v=>{const n=parseFloat(String(v).replace(/,/g,''));return !isNaN(n)&&String(v).trim()!=='';};
       const SKIP=new Set(['1','4','9']);
-      const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA\s|^EFEC|^PAGO|^15 SEP|^ANTI\s|^CART|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^REN[HG]|^LIANA|^PATRICIA|^EFECT\s|^TRANS\s|^RESTO\s|^MELCHOR|^DEV NOM|^Resto /i;
+      const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA\s|^EFEC|^PAGO|^15 SEP|^ANTI\s|^CART|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^LIANA|^PATRICIA|^EFECT\s|^TRANS\s|^RESTO\s|^MELCHOR|^DEV NOM|^Resto /i;
       const HDRB=new Set(['Usuario:','Clientes','Concepto','Saldo','Vendedores:','Fecha de referencia','Reporte detallado']);
       const HDRD=new Set(['Saldo','Documento','Al corriente','1 - 30','31 - 60','61 - 90','91 o más']);
       // Build page break rows (Usuario: row + next 19)
