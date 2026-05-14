@@ -225,10 +225,16 @@ tr:hover td{background:#F8FAFC}
         <div class="card">
           <div class="card-header">
             <span class="card-title">Llamar hoy</span>
-            <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Registrar llamada
-            </button>
+            <div style="display:flex;align-items:center;gap:10px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none">
+                <input type="checkbox" id="toggle-mis-alertas" onchange="renderHoy()" style="accent-color:var(--blue)">
+                Solo mis alertas
+              </label>
+              <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Registrar llamada
+              </button>
+            </div>
           </div>
           <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Estatus</th><th>Último resultado</th><th>Gestor</th><th></th></tr></thead><tbody id="tbody-hoy"></tbody></table></div>
         </div>
@@ -709,10 +715,56 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
-  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  const soloMios = document.getElementById('toggle-mis-alertas')?.checked || false;
+
+  // Para cada cliente, obtener la gestión más reciente (la primera en GESTIONES que ya está ordenada desc por fecha)
+  // Una gestión con seguimiento está "atendida" si existe una gestión del mismo cliente con fecha >= seguimiento
+  const ultimaGestionPorCliente = {};
+  GESTIONES.forEach(g => {
+    const cid = String(g.clienteId);
+    if(!ultimaGestionPorCliente[cid]) ultimaGestionPorCliente[cid] = g; // GESTIONES ya viene ordenado desc
+  });
+
+  // "Llamar hoy": gestiones cuyo seguimiento = hoy, Y no hay gestión más reciente del mismo cliente con fecha >= seguimiento
+  // Es decir: la gestión con seguimiento hoy debe ser la más reciente para ese cliente (o no haber ninguna de hoy en adelante)
+  const candidatosHoy = GESTIONES.filter(g => g.seguimiento === TODAY);
+  // Dedup por cliente (quedarse con la más reciente que tenga seguimiento=hoy)
+  const seenHoy = {};
+  candidatosHoy.forEach(g => {
+    const cid = String(g.clienteId);
+    if(!seenHoy[cid]) seenHoy[cid] = g;
+  });
+  let hoy = Object.values(seenHoy).filter(g => {
+    // Verificar que no haya una gestión posterior a este seguimiento para el mismo cliente
+    const cid = String(g.clienteId);
+    const ultima = ultimaGestionPorCliente[cid];
+    // Si la última gestión es la misma que tiene el seguimiento hoy → pendiente
+    // Si hay una gestión con fecha > g.fecha (más reciente) → ya fue atendido
+    return !ultima || ultima.firestoreId === g.firestoreId || ultima.fecha <= g.seguimiento;
+  });
+
+  // "Vencidos": seguimientos < hoy, donde NO existe una gestión del mismo cliente con fecha >= fecha_seguimiento
+  const candidatosVenc = GESTIONES.filter(g => g.seguimiento && g.seguimiento < TODAY);
+  const seenVenc = {};
+  // Por cliente, guardar solo el seguimiento vencido más reciente
+  candidatosVenc.forEach(g => {
+    const cid = String(g.clienteId);
+    if(!seenVenc[cid] || g.seguimiento > seenVenc[cid].seguimiento) seenVenc[cid] = g;
+  });
+  let venc = Object.values(seenVenc).filter(g => {
+    const cid = String(g.clienteId);
+    const ultima = ultimaGestionPorCliente[cid];
+    // Está vencido solo si la última gestión del cliente ES esa misma (no hay gestión posterior que lo haya atendido)
+    // O si la fecha de la última gestión es anterior o igual al seguimiento vencido
+    return ultima && ultima.firestoreId === g.firestoreId;
+  });
+
+  // Filtro "solo mis alertas"
+  if(soloMios){
+    hoy  = hoy.filter(g  => g.gestorId === CURRENT_USER.uid);
+    venc = venc.filter(g => g.gestorId === CURRENT_USER.uid);
+  }
+
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
