@@ -710,26 +710,78 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
-  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  /*
+   * LÓGICA DE ALERTAS — reglas:
+   *
+   * Para cada cliente, tomamos su gestión MÁS RECIENTE (GESTIONES ya viene
+   * ordenado desc por fecha).  Un cliente aparece en "Llamar hoy" si:
+   *   - su gestión más reciente tiene seguimiento === TODAY
+   *   - Y no registró ninguna gestión con fecha === TODAY (ya fue atendido hoy)
+   *
+   * Un cliente aparece en "Seguimientos vencidos" si:
+   *   - su gestión más reciente tiene seguimiento < TODAY
+   *   - Y no registró ninguna gestión con fecha > seguimiento (el seguimiento
+   *     ya fue resuelto con una llamada posterior, aunque no exactamente hoy)
+   *
+   * En ambos casos mostramos UN solo renglón por cliente (sin duplicados).
+   */
+
+  // Índice: clienteId → fecha de su gestión MÁS RECIENTE
+  const ultimaGestion = {};
+  GESTIONES.forEach(g => {
+    const cid = String(g.clienteId);
+    if(!ultimaGestion[cid] || g.fecha > ultimaGestion[cid]) ultimaGestion[cid] = g.fecha;
+  });
+
+  // Gestión más reciente por cliente (un solo objeto por cliente)
+  const vistosHoy = new Set();
+  const vistosVenc = new Set();
+  const listaHoy = [];
+  const listaVenc = [];
+
+  GESTIONES.forEach(g => {
+    const cid = String(g.clienteId);
+    if(!g.seguimiento) return;
+
+    // === LLAMAR HOY ===
+    if(g.seguimiento === TODAY && !vistosHoy.has(cid)){
+      // Solo si la gestión más reciente del cliente NO es de hoy
+      // (si ya llamaron hoy, no aparece)
+      if(ultimaGestion[cid] < TODAY){
+        vistosHoy.add(cid);
+        listaHoy.push(g);
+      }
+    }
+
+    // === SEGUIMIENTOS VENCIDOS ===
+    if(g.seguimiento < TODAY && !vistosVenc.has(cid)){
+      // Solo si la gestión más reciente del cliente es anterior o igual
+      // al seguimiento (no ha habido llamada posterior que lo resuelva)
+      if(ultimaGestion[cid] <= g.seguimiento){
+        vistosVenc.add(cid);
+        listaVenc.push(g);
+      }
+    }
+  });
+
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>=1).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
     if(!rd.vencimiento) return false;
     const dias = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
     return dias<=3;
   }).length;
+
   document.getElementById('kpis-hoy').innerHTML = `
-    <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${hoy.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${venc.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${listaHoy.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${listaVenc.length}</div></div>
     <div class="kpi"><div class="kpi-label">Saldo total</div><div class="kpi-value">${fmt(saldoTotal)}</div></div>
     <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger">${criticos}</div></div>
     <div class="kpi"><div class="kpi-label">Renta por vencer</div><div class="kpi-value purple">${rentaAlerta}</div></div>
   `;
-  document.getElementById('badge-hoy').textContent = hoy.length+' hoy';
+  document.getElementById('badge-hoy').textContent = listaHoy.length+' hoy';
   document.getElementById('badge-renta').textContent = rentaAlerta+' renta';
+
   const makeRow=(g,showVenc)=>{
     const cl=getCliente(g.clienteId);
     const est=estatusCliente(cl);
@@ -748,11 +800,12 @@ function renderHoy(){
       </td>
     </tr>`;
   };
-  document.getElementById('tbody-hoy').innerHTML = hoy.length
-    ? hoy.map(g=>makeRow(g,false)).join('')
+
+  document.getElementById('tbody-hoy').innerHTML = listaHoy.length
+    ? listaHoy.map(g=>makeRow(g,false)).join('')
     : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin pendientes para hoy ✓</td></tr>';
-  document.getElementById('tbody-vencidos').innerHTML = venc.length
-    ? venc.map(g=>makeRow(g,true)).join('')
+  document.getElementById('tbody-vencidos').innerHTML = listaVenc.length
+    ? listaVenc.map(g=>makeRow(g,true)).join('')
     : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin seguimientos vencidos ✓</td></tr>';
 }
 
