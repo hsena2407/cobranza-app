@@ -711,58 +711,37 @@ function showPage(id, el){
 // ══════════════════════════════════════════════════════
 function renderHoy(){
   /*
-   * LÓGICA DE ALERTAS — reglas:
+   * REGLA ÚNICA Y SIMPLE:
+   * Por cada cliente, tomamos SOLO su gestión más reciente (mayor fecha).
+   * - Si esa gestión tiene seguimiento === TODAY  → "Llamar hoy"
+   * - Si esa gestión tiene seguimiento < TODAY    → "Seguimiento vencido"
+   * - Cualquier otro caso                         → no aparece
    *
-   * Para cada cliente, tomamos su gestión MÁS RECIENTE (GESTIONES ya viene
-   * ordenado desc por fecha).  Un cliente aparece en "Llamar hoy" si:
-   *   - su gestión más reciente tiene seguimiento === TODAY
-   *   - Y no registró ninguna gestión con fecha === TODAY (ya fue atendido hoy)
-   *
-   * Un cliente aparece en "Seguimientos vencidos" si:
-   *   - su gestión más reciente tiene seguimiento < TODAY
-   *   - Y no registró ninguna gestión con fecha > seguimiento (el seguimiento
-   *     ya fue resuelto con una llamada posterior, aunque no exactamente hoy)
-   *
-   * En ambos casos mostramos UN solo renglón por cliente (sin duplicados).
+   * Esto garantiza que registrar una nueva gestión siempre limpia al cliente
+   * de ambas listas, sin importar la fecha del seguimiento anterior.
    */
 
-  // Índice: clienteId → fecha de su gestión MÁS RECIENTE
-  const ultimaGestion = {};
+  // Paso 1: construir mapa clienteId → gestión más reciente (objeto completo)
+  // GESTIONES ya viene ordenado desc por fecha, así que el primer que veamos
+  // de cada cliente ES el más reciente.
+  const gestionMasReciente = {};
   GESTIONES.forEach(g => {
     const cid = String(g.clienteId);
-    if(!ultimaGestion[cid] || g.fecha > ultimaGestion[cid]) ultimaGestion[cid] = g.fecha;
+    if(!gestionMasReciente[cid]) gestionMasReciente[cid] = g;
   });
 
-  // Gestión más reciente por cliente (un solo objeto por cliente)
-  const vistosHoy = new Set();
-  const vistosVenc = new Set();
+  // Paso 2: clasificar cada cliente según su única gestión reciente
   const listaHoy = [];
   const listaVenc = [];
 
-  GESTIONES.forEach(g => {
-    const cid = String(g.clienteId);
+  Object.values(gestionMasReciente).forEach(g => {
     if(!g.seguimiento) return;
-
-    // === LLAMAR HOY ===
-    if(g.seguimiento === TODAY && !vistosHoy.has(cid)){
-      // Solo si la gestión más reciente del cliente NO es de hoy
-      // (si ya llamaron hoy, no aparece)
-      if(ultimaGestion[cid] < TODAY){
-        vistosHoy.add(cid);
-        listaHoy.push(g);
-      }
-    }
-
-    // === SEGUIMIENTOS VENCIDOS ===
-    if(g.seguimiento < TODAY && !vistosVenc.has(cid)){
-      // Solo si la gestión más reciente del cliente es anterior o igual
-      // al seguimiento (no ha habido llamada posterior que lo resuelva)
-      if(ultimaGestion[cid] <= g.seguimiento){
-        vistosVenc.add(cid);
-        listaVenc.push(g);
-      }
-    }
+    if(g.seguimiento === TODAY) listaHoy.push(g);
+    else if(g.seguimiento < TODAY) listaVenc.push(g);
   });
+
+  // Ordenar vencidos: más antiguos primero
+  listaVenc.sort((a,b) => a.seguimiento.localeCompare(b.seguimiento));
 
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>=1).length;
