@@ -225,16 +225,10 @@ tr:hover td{background:#F8FAFC}
         <div class="card">
           <div class="card-header">
             <span class="card-title">Llamar hoy</span>
-            <div style="display:flex;align-items:center;gap:10px">
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none">
-                <input type="checkbox" id="toggle-mis-alertas" onchange="renderHoy()" style="accent-color:var(--blue)">
-                Solo mis alertas
-              </label>
-              <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Registrar llamada
-              </button>
-            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Registrar llamada
+            </button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo</th><th>Estatus</th><th>Último resultado</th><th>Gestor</th><th></th></tr></thead><tbody id="tbody-hoy"></tbody></table></div>
         </div>
@@ -271,34 +265,11 @@ tr:hover td{background:#F8FAFC}
       <!-- GESTIONES -->
       <div class="page" id="page-gestiones">
         <div class="search-row">
-          <input class="search-input" style="flex:1;max-width:300px" id="q-gestiones" placeholder="Buscar cliente, resultado, gestor..." oninput="filtrarGestiones()">
-          <select class="search-input" style="max-width:160px" id="fg-resultado" onchange="filtrarGestiones()">
-            <option value="">Todos los resultados</option>
-            <option value="Prometió pagar">Prometió pagar</option>
-            <option value="Pagará hoy">Pagará hoy</option>
-            <option value="Pagado confirmado">Pagado confirmado</option>
-            <option value="No contestó">No contestó</option>
-            <option value="Solicitó espera">Solicitó espera</option>
-            <option value="Negó deuda">Negó deuda</option>
-            <option value="Número equivocado">Número equivocado</option>
-            <option value="Otro">Otro</option>
-          </select>
-          <select class="search-input admin-only" style="max-width:160px;display:none" id="fg-gestor" onchange="filtrarGestiones()">
-            <option value="">Todos los gestores</option>
-          </select>
+          <input class="search-input" style="flex:1;max-width:300px" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
           <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nueva gestión
           </button>
-        </div>
-        <div class="search-row" style="margin-bottom:14px">
-          <button class="btn btn-sm" id="fg-btn-hoy" onclick="setFiltroFechaGestiones('hoy')">Hoy</button>
-          <button class="btn btn-sm" id="fg-btn-semana" onclick="setFiltroFechaGestiones('semana')">Esta semana</button>
-          <button class="btn btn-sm" id="fg-btn-mes" onclick="setFiltroFechaGestiones('mes')">Este mes</button>
-          <button class="btn btn-sm" id="fg-btn-todas" onclick="setFiltroFechaGestiones('todas')">Todas</button>
-          <input type="date" class="search-input" id="fg-ini" style="max-width:145px" onchange="setFiltroFechaGestiones('rango')" title="Desde">
-          <input type="date" class="search-input" id="fg-fin" style="max-width:145px" onchange="setFiltroFechaGestiones('rango')" title="Hasta">
-          <span id="fg-contador" style="font-size:12px;color:var(--muted);margin-left:4px"></span>
         </div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div></div>
       </div>
@@ -597,11 +568,12 @@ const fmtDate = d => {
 function initials(n){ const w=(n||'?').trim().split(' '); return (w[0][0]+(w[1]?w[1][0]:'')).toUpperCase() }
 
 function estatusCliente(cl){
-  if(cl.dias_91_mas>0) return {label:'Crítico 91+',cls:'pill-red'};
-  if(cl.dias_61_90>0)  return {label:'Vencido 61-90',cls:'pill-red'};
-  if(cl.dias_31_60>0)  return {label:'Vencido 31-60',cls:'pill-amber'};
-  if(cl.dias_1_30>0)   return {label:'Por vencer 1-30',cls:'pill-blue'};
-  if(cl.saldo_total<=0)return {label:'Sin saldo',cls:'pill-gray'};
+  // Umbral de $1 para evitar falsos positivos por decimales del AS
+  if(cl.dias_91_mas>=1) return {label:'Crítico 91+',cls:'pill-red'};
+  if(cl.dias_61_90>=1)  return {label:'Vencido 61-90',cls:'pill-red'};
+  if(cl.dias_31_60>=1)  return {label:'Vencido 31-60',cls:'pill-amber'};
+  if(cl.dias_1_30>=1)   return {label:'Por vencer 1-30',cls:'pill-blue'};
+  if(cl.saldo_total<=0) return {label:'Sin saldo',cls:'pill-gray'};
   return {label:'Al corriente',cls:'pill-green'};
 }
 function resultadoPill(r){
@@ -732,74 +704,16 @@ function showPage(id, el){
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
-  if(id==='gestiones') initFiltrosGestiones();
-}
-
-function initFiltrosGestiones(){
-  if(IS_ADMIN){
-    const sel=document.getElementById('fg-gestor');
-    if(sel){
-      const gestores=[...new Map(GESTIONES.filter(g=>g.gestorNombre).map(g=>[g.gestorId,g.gestorNombre])).entries()];
-      sel.innerHTML='<option value="">Todos los gestores</option>'+gestores.map(([id,n])=>`<option value="${id}">${n}</option>`).join('');
-      sel.style.display='';
-    }
-  }
-  setFiltroFechaGestiones('semana');
 }
 
 // ══════════════════════════════════════════════════════
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  const soloMios = document.getElementById('toggle-mis-alertas')?.checked || false;
-
-  // Para cada cliente, obtener la gestión más reciente (la primera en GESTIONES que ya está ordenada desc por fecha)
-  // Una gestión con seguimiento está "atendida" si existe una gestión del mismo cliente con fecha >= seguimiento
-  const ultimaGestionPorCliente = {};
-  GESTIONES.forEach(g => {
-    const cid = String(g.clienteId);
-    if(!ultimaGestionPorCliente[cid]) ultimaGestionPorCliente[cid] = g; // GESTIONES ya viene ordenado desc
-  });
-
-  // "Llamar hoy": gestiones cuyo seguimiento = hoy, Y no hay gestión más reciente del mismo cliente con fecha >= seguimiento
-  // Es decir: la gestión con seguimiento hoy debe ser la más reciente para ese cliente (o no haber ninguna de hoy en adelante)
-  const candidatosHoy = GESTIONES.filter(g => g.seguimiento === TODAY);
-  // Dedup por cliente (quedarse con la más reciente que tenga seguimiento=hoy)
-  const seenHoy = {};
-  candidatosHoy.forEach(g => {
-    const cid = String(g.clienteId);
-    if(!seenHoy[cid]) seenHoy[cid] = g;
-  });
-  let hoy = Object.values(seenHoy).filter(g => {
-    const cid = String(g.clienteId);
-    const ultima = ultimaGestionPorCliente[cid];
-    // Pendiente solo si la gestión más reciente del cliente ES la que generó el seguimiento de hoy.
-    // Si ya registró una nueva gestión hoy (distinto firestoreId) → ya fue atendido, se quita.
-    return ultima && ultima.firestoreId === g.firestoreId;
-  });
-
-  // "Vencidos": seguimientos < hoy, donde NO existe una gestión del mismo cliente con fecha >= fecha_seguimiento
-  const candidatosVenc = GESTIONES.filter(g => g.seguimiento && g.seguimiento < TODAY);
-  const seenVenc = {};
-  // Por cliente, guardar solo el seguimiento vencido más reciente
-  candidatosVenc.forEach(g => {
-    const cid = String(g.clienteId);
-    if(!seenVenc[cid] || g.seguimiento > seenVenc[cid].seguimiento) seenVenc[cid] = g;
-  });
-  let venc = Object.values(seenVenc).filter(g => {
-    const cid = String(g.clienteId);
-    const ultima = ultimaGestionPorCliente[cid];
-    // Está vencido solo si la última gestión del cliente ES esa misma (no hay gestión posterior que lo haya atendido)
-    // O si la fecha de la última gestión es anterior o igual al seguimiento vencido
-    return ultima && ultima.firestoreId === g.firestoreId;
-  });
-
-  // Filtro "solo mis alertas"
-  if(soloMios){
-    hoy  = hoy.filter(g  => g.gestorId === CURRENT_USER.uid);
-    venc = venc.filter(g => g.gestorId === CURRENT_USER.uid);
-  }
-
+  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
+  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
+  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
+  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
@@ -897,7 +811,13 @@ function verCliente(id){
       <div style="flex:1">
         <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span>Sin teléfono</span>'}
+          ${cl.tel
+            ? `<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`
+            : '<span style="color:var(--muted)">Sin teléfono</span>'
+          }
+          <button onclick="editarTelefono('${id}')" style="background:none;border:1px solid var(--brd);border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;gap:4px" title="Editar teléfono">
+            ✏️ ${cl.tel ? 'Editar' : 'Agregar teléfono'}
+          </button>
           <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px">
@@ -962,70 +882,16 @@ function verCliente(id){
 // ══════════════════════════════════════════════════════
 // GESTIONES
 // ══════════════════════════════════════════════════════
-// Estado del filtro de fecha en gestiones
-let FG_MODO = 'semana'; // hoy | semana | mes | todas | rango
-
-function setFiltroFechaGestiones(modo){
-  FG_MODO = modo;
-  if(modo==='hoy'){
-    document.getElementById('fg-ini').value = TODAY;
-    document.getElementById('fg-fin').value = TODAY;
-  } else if(modo==='semana'){
-    const hoy=new Date(); const lun=new Date(hoy); lun.setDate(hoy.getDate()-hoy.getDay()+1);
-    const dom=new Date(lun); dom.setDate(lun.getDate()+6);
-    document.getElementById('fg-ini').value = lun.toISOString().split('T')[0];
-    document.getElementById('fg-fin').value = dom.toISOString().split('T')[0];
-  } else if(modo==='mes'){
-    const hoy=new Date();
-    document.getElementById('fg-ini').value = new Date(hoy.getFullYear(),hoy.getMonth(),1).toISOString().split('T')[0];
-    document.getElementById('fg-fin').value = new Date(hoy.getFullYear(),hoy.getMonth()+1,0).toISOString().split('T')[0];
-  } else if(modo==='todas'){
-    document.getElementById('fg-ini').value = '';
-    document.getElementById('fg-fin').value = '';
-  }
-  // Resaltar botón activo
-  ['hoy','semana','mes','todas'].forEach(m=>{
-    const btn=document.getElementById('fg-btn-'+m);
-    if(btn) btn.style.cssText = m===modo ? 'background:var(--blue);color:#fff;border-color:var(--blue)' : '';
-  });
-  filtrarGestiones();
-}
-
-function filtrarGestiones(){
-  const q = (document.getElementById('q-gestiones')?.value||'').toLowerCase().trim();
-  const resultado = document.getElementById('fg-resultado')?.value||'';
-  const gestorId = document.getElementById('fg-gestor')?.value||'';
-  const ini = document.getElementById('fg-ini')?.value||'';
-  const fin = document.getElementById('fg-fin')?.value||'';
-
-  let lista = GESTIONES;
-
-  // Filtro texto
-  if(q) lista=lista.filter(g=>{
-    const cl=getCliente(g.clienteId);
-    return cl.nombre.toLowerCase().includes(q)||
-           (g.resultado||'').toLowerCase().includes(q)||
-           (g.gestorNombre||'').toLowerCase().includes(q)||
-           (g.notas||'').toLowerCase().includes(q);
-  });
-  // Filtro resultado
-  if(resultado) lista=lista.filter(g=>g.resultado===resultado);
-  // Filtro gestor (solo admin ve el selector)
-  if(gestorId) lista=lista.filter(g=>g.gestorId===gestorId);
-  // Filtro fecha
-  if(ini) lista=lista.filter(g=>g.fecha>=ini);
-  if(fin) lista=lista.filter(g=>g.fecha<=fin);
-
+function filtrarGestiones(q){
+  let lista=GESTIONES;
+  if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
   renderGestiones(lista);
 }
-
 function renderGestiones(lista){
   lista=lista||GESTIONES;
-  const contador=document.getElementById('fg-contador');
-  if(contador) contador.textContent = lista.length ? lista.length+' gestión'+(lista.length!==1?'es':'') : '';
   document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
     const cl=getCliente(g.clienteId);
-    const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento&&g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
+    const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
     return `<tr>
       <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
       <td><strong>${cl.nombre}</strong></td>
@@ -1035,7 +901,7 @@ function renderGestiones(lista){
       <td style="${sc}">${fmtDate(g.seguimiento)}</td>
       <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
     </tr>`;
-  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones en este período</td></tr>';
+  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════
@@ -1661,6 +1527,25 @@ function importarClientes(input){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════════════════
+// EDITAR TELÉFONO DE CLIENTE
+// ══════════════════════════════════════════════════════
+async function editarTelefono(clienteId){
+  const cl = getCliente(clienteId);
+  const actual = cl.tel || '';
+  const nuevo = prompt('Teléfono del cliente' + (actual ? ' (actual: '+actual+')' : '') + ':', actual);
+  if(nuevo === null) return;
+  const tel = nuevo.trim();
+  try{
+    await empCol('clientes').doc(String(clienteId)).update({tel});
+    const idx = CLIENTES.findIndex(c => String(c.id) === String(clienteId));
+    if(idx !== -1) CLIENTES[idx].tel = tel;
+    verCliente(clienteId);
+  } catch(e){
+    alert('Error al guardar teléfono: ' + e.message);
+  }
 }
 
 // COBRANZA
