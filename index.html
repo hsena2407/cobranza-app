@@ -264,13 +264,39 @@ tr:hover td{background:#F8FAFC}
 
       <!-- GESTIONES -->
       <div class="page" id="page-gestiones">
-        <div class="search-row">
-          <input class="search-input" style="flex:1;max-width:300px" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
-          <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Nueva gestión
-          </button>
+        <div class="search-row" style="flex-wrap:wrap;gap:8px">
+          <input class="search-input" style="flex:1;min-width:200px;max-width:280px" placeholder="Buscar cliente o gestor..." oninput="filtrarGestiones()" id="q-gestiones">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="date" class="search-input" id="g-ini" style="width:145px" onchange="filtrarGestiones()">
+            <span style="color:var(--muted);font-size:12px">al</span>
+            <input type="date" class="search-input" id="g-fin" style="width:145px" onchange="filtrarGestiones()">
+            <select class="search-input" id="g-resultado" style="width:170px" onchange="filtrarGestiones()">
+              <option value="">Todos los resultados</option>
+              <option value="Prometió pagar">Prometió pagar</option>
+              <option value="Pagará hoy">Pagará hoy</option>
+              <option value="Pagado confirmado">Pagado confirmado</option>
+              <option value="No contestó">No contestó</option>
+              <option value="Solicitó espera">Solicitó espera</option>
+              <option value="Negó deuda">Negó deuda</option>
+              <option value="Número equivocado">Número equivocado</option>
+              <option value="Otro">Otro</option>
+            </select>
+            <select class="search-input admin-only" id="g-gestor" style="width:170px;display:none" onchange="filtrarGestiones()">
+              <option value="">Todos los gestores</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-sm" onclick="setFiltroGestHoy()">Hoy</button>
+            <button class="btn btn-sm" onclick="setFiltroGestSemana()">Esta semana</button>
+            <button class="btn btn-sm" onclick="setFiltroGestMes()">Este mes</button>
+            <button class="btn btn-sm" onclick="limpiarFiltrosGest()">Todas</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva gestión
+            </button>
+          </div>
         </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px" id="kpis-gestiones"></div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div></div>
       </div>
 
@@ -689,7 +715,8 @@ function suscribirGestiones(){
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
     GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||''); });
     renderHoy();
-    renderGestiones();
+    filtrarGestiones();
+    poblarSelectorGestor();
   });
 }
 
@@ -704,6 +731,7 @@ function showPage(id, el){
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
+  if(id==='gestiones'){poblarSelectorGestor();filtrarGestiones();}
 }
 
 // ══════════════════════════════════════════════════════
@@ -914,26 +942,96 @@ function verCliente(id){
 // ══════════════════════════════════════════════════════
 // GESTIONES
 // ══════════════════════════════════════════════════════
-function filtrarGestiones(q){
-  let lista=GESTIONES;
-  if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
+// ══════════════════════════════════════════════════════
+// GESTIONES — filtros y render
+// ══════════════════════════════════════════════════════
+function setFiltroGestHoy(){
+  const h = TODAY;
+  document.getElementById('g-ini').value = h;
+  document.getElementById('g-fin').value = h;
+  filtrarGestiones();
+}
+function setFiltroGestSemana(){
+  const hoy = new Date();
+  const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+  const dom = new Date(lunes); dom.setDate(lunes.getDate() + 6);
+  document.getElementById('g-ini').value = lunes.toISOString().split('T')[0];
+  document.getElementById('g-fin').value = dom.toISOString().split('T')[0];
+  filtrarGestiones();
+}
+function setFiltroGestMes(){
+  const hoy = new Date();
+  document.getElementById('g-ini').value = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+  document.getElementById('g-fin').value = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
+  filtrarGestiones();
+}
+function limpiarFiltrosGest(){
+  document.getElementById('g-ini').value = '';
+  document.getElementById('g-fin').value = '';
+  document.getElementById('g-resultado').value = '';
+  const gs = document.getElementById('g-gestor'); if(gs) gs.value = '';
+  document.getElementById('q-gestiones').value = '';
+  filtrarGestiones();
+}
+function poblarSelectorGestor(){
+  const sel = document.getElementById('g-gestor');
+  if(!sel || !IS_ADMIN) return;
+  sel.style.display = 'inline-block';
+  const gestores = [...new Map(GESTIONES.filter(g=>g.gestorNombre).map(g=>[g.gestorId, g.gestorNombre])).entries()];
+  sel.innerHTML = '<option value="">Todos los gestores</option>' +
+    gestores.map(([id, nombre]) => `<option value="${id}">${nombre}</option>`).join('');
+}
+function filtrarGestiones(){
+  const q      = (document.getElementById('q-gestiones')?.value || '').toLowerCase().trim();
+  const ini    = document.getElementById('g-ini')?.value || '';
+  const fin    = document.getElementById('g-fin')?.value || '';
+  const res    = document.getElementById('g-resultado')?.value || '';
+  const gestor = document.getElementById('g-gestor')?.value || '';
+
+  let lista = GESTIONES;
+  if(ini)    lista = lista.filter(g => g.fecha >= ini);
+  if(fin)    lista = lista.filter(g => g.fecha <= fin);
+  if(res)    lista = lista.filter(g => g.resultado === res);
+  if(gestor) lista = lista.filter(g => g.gestorId === gestor);
+  if(q)      lista = lista.filter(g => {
+    const cl = getCliente(g.clienteId);
+    return cl.nombre.toLowerCase().includes(q) ||
+           (g.gestorNombre || '').toLowerCase().includes(q) ||
+           (g.resultado || '').toLowerCase().includes(q) ||
+           (g.notas || '').toLowerCase().includes(q);
+  });
+
+  // KPIs del período filtrado
+  const totalComp = lista.filter(g => g.compromiso > 0).reduce((a, g) => a + g.compromiso, 0);
+  const pagados   = lista.filter(g => g.resultado === 'Pagado confirmado');
+  const kpisEl    = document.getElementById('kpis-gestiones');
+  if(kpisEl){
+    kpisEl.innerHTML = lista.length > 0 ? `
+      <div class="kpi" style="padding:10px 14px;min-width:110px"><div class="kpi-label">Gestiones</div><div class="kpi-value" style="font-size:18px">${lista.length}</div></div>
+      <div class="kpi" style="padding:10px 14px;min-width:130px"><div class="kpi-label">Clientes únicos</div><div class="kpi-value" style="font-size:18px">${new Set(lista.map(g=>g.clienteId)).size}</div></div>
+      <div class="kpi" style="padding:10px 14px;min-width:150px"><div class="kpi-label">Comprometido</div><div class="kpi-value warning" style="font-size:18px">${fmt(totalComp)}</div></div>
+      <div class="kpi" style="padding:10px 14px;min-width:130px"><div class="kpi-label">Pagado confirmado</div><div class="kpi-value success" style="font-size:18px">${pagados.length}</div></div>
+    ` : '';
+  }
+
   renderGestiones(lista);
 }
 function renderGestiones(lista){
-  lista=lista||GESTIONES;
-  document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
-    const cl=getCliente(g.clienteId);
-    const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
+  lista = lista || GESTIONES;
+  document.getElementById('tbody-gestiones').innerHTML = lista.length ? lista.map(g => {
+    const cl = getCliente(g.clienteId);
+    const sc = g.seguimiento === TODAY ? 'color:var(--amber);font-weight:600' : g.seguimiento < TODAY ? 'color:var(--red);font-weight:600' : '';
     return `<tr>
-      <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
+      <td style="color:var(--muted);font-size:11px">${g.id || g.firestoreId?.slice(-6) || '—'}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
+      <td>${fmtDate(g.fecha)}</td>
+      <td>${g.medio}</td>
       <td>${resultadoPill(g.resultado)}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre || '—'}</td>
       <td style="${sc}">${fmtDate(g.seguimiento)}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas || '—'}</td>
     </tr>`;
-  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════
