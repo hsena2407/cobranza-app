@@ -264,39 +264,13 @@ tr:hover td{background:#F8FAFC}
 
       <!-- GESTIONES -->
       <div class="page" id="page-gestiones">
-        <div class="search-row" style="flex-wrap:wrap;gap:8px">
-          <input class="search-input" style="flex:1;min-width:200px;max-width:280px" placeholder="Buscar cliente o gestor..." oninput="filtrarGestiones()" id="q-gestiones">
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input type="date" class="search-input" id="g-ini" style="width:145px" onchange="filtrarGestiones()">
-            <span style="color:var(--muted);font-size:12px">al</span>
-            <input type="date" class="search-input" id="g-fin" style="width:145px" onchange="filtrarGestiones()">
-            <select class="search-input" id="g-resultado" style="width:170px" onchange="filtrarGestiones()">
-              <option value="">Todos los resultados</option>
-              <option value="Prometió pagar">Prometió pagar</option>
-              <option value="Pagará hoy">Pagará hoy</option>
-              <option value="Pagado confirmado">Pagado confirmado</option>
-              <option value="No contestó">No contestó</option>
-              <option value="Solicitó espera">Solicitó espera</option>
-              <option value="Negó deuda">Negó deuda</option>
-              <option value="Número equivocado">Número equivocado</option>
-              <option value="Otro">Otro</option>
-            </select>
-            <select class="search-input admin-only" id="g-gestor" style="width:170px;display:none" onchange="filtrarGestiones()">
-              <option value="">Todos los gestores</option>
-            </select>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button class="btn btn-sm" onclick="setFiltroGestHoy()">Hoy</button>
-            <button class="btn btn-sm" onclick="setFiltroGestSemana()">Esta semana</button>
-            <button class="btn btn-sm" onclick="setFiltroGestMes()">Este mes</button>
-            <button class="btn btn-sm" onclick="limpiarFiltrosGest()">Todas</button>
-            <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nueva gestión
-            </button>
-          </div>
+        <div class="search-row">
+          <input class="search-input" style="flex:1;max-width:300px" placeholder="Buscar gestiones..." oninput="filtrarGestiones(this.value)">
+          <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nueva gestión
+          </button>
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px" id="kpis-gestiones"></div>
         <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Medio</th><th>Resultado</th><th>Gestor</th><th>Próx. seguimiento</th><th>Notas</th></tr></thead><tbody id="tbody-gestiones"></tbody></table></div></div>
       </div>
 
@@ -594,12 +568,11 @@ const fmtDate = d => {
 function initials(n){ const w=(n||'?').trim().split(' '); return (w[0][0]+(w[1]?w[1][0]:'')).toUpperCase() }
 
 function estatusCliente(cl){
-  // Umbral de $1 para evitar falsos positivos por decimales del AS
-  if(cl.dias_91_mas>=1) return {label:'Crítico 91+',cls:'pill-red'};
-  if(cl.dias_61_90>=1)  return {label:'Vencido 61-90',cls:'pill-red'};
-  if(cl.dias_31_60>=1)  return {label:'Vencido 31-60',cls:'pill-amber'};
-  if(cl.dias_1_30>=1)   return {label:'Por vencer 1-30',cls:'pill-blue'};
-  if(cl.saldo_total<=0) return {label:'Sin saldo',cls:'pill-gray'};
+  if(cl.dias_91_mas>0) return {label:'Crítico 91+',cls:'pill-red'};
+  if(cl.dias_61_90>0)  return {label:'Vencido 61-90',cls:'pill-red'};
+  if(cl.dias_31_60>0)  return {label:'Vencido 31-60',cls:'pill-amber'};
+  if(cl.dias_1_30>0)   return {label:'Por vencer 1-30',cls:'pill-blue'};
+  if(cl.saldo_total<=0)return {label:'Sin saldo',cls:'pill-gray'};
   return {label:'Al corriente',cls:'pill-green'};
 }
 function resultadoPill(r){
@@ -715,8 +688,7 @@ function suscribirGestiones(){
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
     GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||''); });
     renderHoy();
-    filtrarGestiones();
-    poblarSelectorGestor();
+    renderGestiones();
   });
 }
 
@@ -731,64 +703,32 @@ function showPage(id, el){
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
-  if(id==='gestiones'){poblarSelectorGestor();filtrarGestiones();}
 }
 
 // ══════════════════════════════════════════════════════
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  /*
-   * REGLA ÚNICA Y SIMPLE:
-   * Por cada cliente, tomamos SOLO su gestión más reciente (mayor fecha).
-   * - Si esa gestión tiene seguimiento === TODAY  → "Llamar hoy"
-   * - Si esa gestión tiene seguimiento < TODAY    → "Seguimiento vencido"
-   * - Cualquier otro caso                         → no aparece
-   *
-   * Esto garantiza que registrar una nueva gestión siempre limpia al cliente
-   * de ambas listas, sin importar la fecha del seguimiento anterior.
-   */
-
-  // Paso 1: construir mapa clienteId → gestión más reciente (objeto completo)
-  // GESTIONES ya viene ordenado desc por fecha, así que el primer que veamos
-  // de cada cliente ES el más reciente.
-  const gestionMasReciente = {};
-  GESTIONES.forEach(g => {
-    const cid = String(g.clienteId);
-    if(!gestionMasReciente[cid]) gestionMasReciente[cid] = g;
-  });
-
-  // Paso 2: clasificar cada cliente según su única gestión reciente
-  const listaHoy = [];
-  const listaVenc = [];
-
-  Object.values(gestionMasReciente).forEach(g => {
-    if(!g.seguimiento) return;
-    if(g.seguimiento === TODAY) listaHoy.push(g);
-    else if(g.seguimiento < TODAY) listaVenc.push(g);
-  });
-
-  // Ordenar vencidos: más antiguos primero
-  listaVenc.sort((a,b) => a.seguimiento.localeCompare(b.seguimiento));
-
+  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
+  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
+  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
+  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const criticos = CLIENTES.filter(c=>c.dias_91_mas>=1).length;
+  const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
     if(!rd.vencimiento) return false;
     const dias = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
     return dias<=3;
   }).length;
-
   document.getElementById('kpis-hoy').innerHTML = `
-    <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${listaHoy.length}</div></div>
-    <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${listaVenc.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${hoy.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${venc.length}</div></div>
     <div class="kpi"><div class="kpi-label">Saldo total</div><div class="kpi-value">${fmt(saldoTotal)}</div></div>
     <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger">${criticos}</div></div>
     <div class="kpi"><div class="kpi-label">Renta por vencer</div><div class="kpi-value purple">${rentaAlerta}</div></div>
   `;
-  document.getElementById('badge-hoy').textContent = listaHoy.length+' hoy';
+  document.getElementById('badge-hoy').textContent = hoy.length+' hoy';
   document.getElementById('badge-renta').textContent = rentaAlerta+' renta';
-
   const makeRow=(g,showVenc)=>{
     const cl=getCliente(g.clienteId);
     const est=estatusCliente(cl);
@@ -807,12 +747,11 @@ function renderHoy(){
       </td>
     </tr>`;
   };
-
-  document.getElementById('tbody-hoy').innerHTML = listaHoy.length
-    ? listaHoy.map(g=>makeRow(g,false)).join('')
+  document.getElementById('tbody-hoy').innerHTML = hoy.length
+    ? hoy.map(g=>makeRow(g,false)).join('')
     : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin pendientes para hoy ✓</td></tr>';
-  document.getElementById('tbody-vencidos').innerHTML = listaVenc.length
-    ? listaVenc.map(g=>makeRow(g,true)).join('')
+  document.getElementById('tbody-vencidos').innerHTML = venc.length
+    ? venc.map(g=>makeRow(g,true)).join('')
     : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin seguimientos vencidos ✓</td></tr>';
 }
 
@@ -825,7 +764,7 @@ function filtrarClientes(q){
   if(q) lista=lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||String(c.id).includes(q)||(c.tel||'').includes(q));
   if(fe==='critico') lista=lista.filter(c=>c.dias_91_mas>0);
   else if(fe==='vencido') lista=lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
-  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!c.dias_1_30&&!c.dias_31_60);
+  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!(c.dias_1_30>0)&&!(c.dias_31_60>0)&&!(c.dias_61_90>0)&&!(c.dias_91_mas>0));
   else if(fe==='renta') lista=lista.filter(c=>c.es_renta);
   renderClientes(lista);
 }
@@ -871,13 +810,7 @@ function verCliente(id){
       <div style="flex:1">
         <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-          ${cl.tel
-            ? `<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`
-            : '<span style="color:var(--muted)">Sin teléfono</span>'
-          }
-          <button onclick="editarTelefono('${id}')" style="background:none;border:1px solid var(--brd);border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;gap:4px" title="Editar teléfono">
-            ✏️ ${cl.tel ? 'Editar' : 'Agregar teléfono'}
-          </button>
+          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span>Sin teléfono</span>'}
           <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px">
@@ -942,96 +875,26 @@ function verCliente(id){
 // ══════════════════════════════════════════════════════
 // GESTIONES
 // ══════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════
-// GESTIONES — filtros y render
-// ══════════════════════════════════════════════════════
-function setFiltroGestHoy(){
-  const h = TODAY;
-  document.getElementById('g-ini').value = h;
-  document.getElementById('g-fin').value = h;
-  filtrarGestiones();
-}
-function setFiltroGestSemana(){
-  const hoy = new Date();
-  const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
-  const dom = new Date(lunes); dom.setDate(lunes.getDate() + 6);
-  document.getElementById('g-ini').value = lunes.toISOString().split('T')[0];
-  document.getElementById('g-fin').value = dom.toISOString().split('T')[0];
-  filtrarGestiones();
-}
-function setFiltroGestMes(){
-  const hoy = new Date();
-  document.getElementById('g-ini').value = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-  document.getElementById('g-fin').value = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0];
-  filtrarGestiones();
-}
-function limpiarFiltrosGest(){
-  document.getElementById('g-ini').value = '';
-  document.getElementById('g-fin').value = '';
-  document.getElementById('g-resultado').value = '';
-  const gs = document.getElementById('g-gestor'); if(gs) gs.value = '';
-  document.getElementById('q-gestiones').value = '';
-  filtrarGestiones();
-}
-function poblarSelectorGestor(){
-  const sel = document.getElementById('g-gestor');
-  if(!sel || !IS_ADMIN) return;
-  sel.style.display = 'inline-block';
-  const gestores = [...new Map(GESTIONES.filter(g=>g.gestorNombre).map(g=>[g.gestorId, g.gestorNombre])).entries()];
-  sel.innerHTML = '<option value="">Todos los gestores</option>' +
-    gestores.map(([id, nombre]) => `<option value="${id}">${nombre}</option>`).join('');
-}
-function filtrarGestiones(){
-  const q      = (document.getElementById('q-gestiones')?.value || '').toLowerCase().trim();
-  const ini    = document.getElementById('g-ini')?.value || '';
-  const fin    = document.getElementById('g-fin')?.value || '';
-  const res    = document.getElementById('g-resultado')?.value || '';
-  const gestor = document.getElementById('g-gestor')?.value || '';
-
-  let lista = GESTIONES;
-  if(ini)    lista = lista.filter(g => g.fecha >= ini);
-  if(fin)    lista = lista.filter(g => g.fecha <= fin);
-  if(res)    lista = lista.filter(g => g.resultado === res);
-  if(gestor) lista = lista.filter(g => g.gestorId === gestor);
-  if(q)      lista = lista.filter(g => {
-    const cl = getCliente(g.clienteId);
-    return cl.nombre.toLowerCase().includes(q) ||
-           (g.gestorNombre || '').toLowerCase().includes(q) ||
-           (g.resultado || '').toLowerCase().includes(q) ||
-           (g.notas || '').toLowerCase().includes(q);
-  });
-
-  // KPIs del período filtrado
-  const totalComp = lista.filter(g => g.compromiso > 0).reduce((a, g) => a + g.compromiso, 0);
-  const pagados   = lista.filter(g => g.resultado === 'Pagado confirmado');
-  const kpisEl    = document.getElementById('kpis-gestiones');
-  if(kpisEl){
-    kpisEl.innerHTML = lista.length > 0 ? `
-      <div class="kpi" style="padding:10px 14px;min-width:110px"><div class="kpi-label">Gestiones</div><div class="kpi-value" style="font-size:18px">${lista.length}</div></div>
-      <div class="kpi" style="padding:10px 14px;min-width:130px"><div class="kpi-label">Clientes únicos</div><div class="kpi-value" style="font-size:18px">${new Set(lista.map(g=>g.clienteId)).size}</div></div>
-      <div class="kpi" style="padding:10px 14px;min-width:150px"><div class="kpi-label">Comprometido</div><div class="kpi-value warning" style="font-size:18px">${fmt(totalComp)}</div></div>
-      <div class="kpi" style="padding:10px 14px;min-width:130px"><div class="kpi-label">Pagado confirmado</div><div class="kpi-value success" style="font-size:18px">${pagados.length}</div></div>
-    ` : '';
-  }
-
+function filtrarGestiones(q){
+  let lista=GESTIONES;
+  if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
   renderGestiones(lista);
 }
 function renderGestiones(lista){
-  lista = lista || GESTIONES;
-  document.getElementById('tbody-gestiones').innerHTML = lista.length ? lista.map(g => {
-    const cl = getCliente(g.clienteId);
-    const sc = g.seguimiento === TODAY ? 'color:var(--amber);font-weight:600' : g.seguimiento < TODAY ? 'color:var(--red);font-weight:600' : '';
+  lista=lista||GESTIONES;
+  document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
+    const cl=getCliente(g.clienteId);
+    const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
     return `<tr>
-      <td style="color:var(--muted);font-size:11px">${g.id || g.firestoreId?.slice(-6) || '—'}</td>
+      <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${fmtDate(g.fecha)}</td>
-      <td>${g.medio}</td>
+      <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
       <td>${resultadoPill(g.resultado)}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre || '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td style="${sc}">${fmtDate(g.seguimiento)}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas || '—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
+  }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════
@@ -1657,25 +1520,6 @@ function importarClientes(input){
     }
   };
   reader.readAsArrayBuffer(file);
-}
-
-// ══════════════════════════════════════════════════════
-// EDITAR TELÉFONO DE CLIENTE
-// ══════════════════════════════════════════════════════
-async function editarTelefono(clienteId){
-  const cl = getCliente(clienteId);
-  const actual = cl.tel || '';
-  const nuevo = prompt('Teléfono del cliente' + (actual ? ' (actual: '+actual+')' : '') + ':', actual);
-  if(nuevo === null) return;
-  const tel = nuevo.trim();
-  try{
-    await empCol('clientes').doc(String(clienteId)).update({tel});
-    const idx = CLIENTES.findIndex(c => String(c.id) === String(clienteId));
-    if(idx !== -1) CLIENTES[idx].tel = tel;
-    verCliente(clienteId);
-  } catch(e){
-    alert('Error al guardar teléfono: ' + e.message);
-  }
 }
 
 // COBRANZA
