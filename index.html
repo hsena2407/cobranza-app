@@ -709,10 +709,21 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
-  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  // Construye un mapa con la ÚLTIMA gestión por cliente.
+  // GESTIONES viene ordenado desc por fecha (y por firestoreId como desempate),
+  // así que la primera vez que vemos un clienteId, esa es su última gestión.
+  const ultimaPorCliente = new Map();
+  GESTIONES.forEach(g=>{
+    const k = String(g.clienteId);
+    if(!ultimaPorCliente.has(k)) ultimaPorCliente.set(k, g);
+  });
+  const ultimas = [...ultimaPorCliente.values()];
+  // Llamar hoy: la última gestión del cliente tiene seguimiento === HOY
+  // y esa gestión NO fue hecha hoy (si fue hoy, ya se atendió).
+  const hoy  = ultimas.filter(g => g.seguimiento === TODAY && g.fecha !== TODAY);
+  // Vencidos: la última gestión del cliente tiene seguimiento < HOY.
+  // Si después hubo otra gestión, esa ya reemplazó el pendiente y este filtro la deja fuera automáticamente.
+  const venc = ultimas.filter(g => g.seguimiento && g.seguimiento < TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
@@ -764,7 +775,7 @@ function filtrarClientes(q){
   if(q) lista=lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||String(c.id).includes(q)||(c.tel||'').includes(q));
   if(fe==='critico') lista=lista.filter(c=>c.dias_91_mas>0);
   else if(fe==='vencido') lista=lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
-  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!(c.dias_1_30>0)&&!(c.dias_31_60>0)&&!(c.dias_61_90>0)&&!(c.dias_91_mas>0));
+  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!c.dias_1_30&&!c.dias_31_60);
   else if(fe==='renta') lista=lista.filter(c=>c.es_renta);
   renderClientes(lista);
 }
