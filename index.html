@@ -382,6 +382,28 @@ tr:hover td{background:#F8FAFC}
   </div>
 </div>
 
+<!-- MODAL TELÉFONO -->
+<div class="modal-bg" id="modal-telefono">
+<div class="modal" style="width:380px">
+  <div class="modal-header">
+    <span class="modal-title" id="et-titulo">Editar teléfono</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-telefono')">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="et-id">
+    <div class="form-group">
+      <label class="form-label">Número de teléfono</label>
+      <input type="tel" class="form-control" id="et-tel" placeholder="Ej: 8112345678"
+        onkeydown="if(event.key==='Enter')guardarTelefono()" style="font-size:16px;letter-spacing:1px">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-telefono')">Cancelar</button>
+    <button class="btn btn-primary" onclick="guardarTelefono()" id="btn-guardar-tel">Guardar</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL GESTIÓN -->
 <div class="modal-bg" id="modal-gestion">
 <div class="modal" style="width:600px">
@@ -785,7 +807,7 @@ function renderClientes(lista){
     return `<tr>
       <td style="color:var(--muted)">${cl.id}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:`<button class="btn btn-sm" style="font-size:11px;color:var(--amber);border-color:var(--amber)" onclick="editarTelefono('${cl.id}','')">+ Tel.</button>`}</td>
       <td style="text-align:right"><strong>${fmt(cl.saldo_total)}</strong></td>
       <td><span class="pill ${est.cls}">${est.label}</span></td>
       <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
@@ -810,7 +832,8 @@ function verCliente(id){
       <div style="flex:1">
         <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span>Sin teléfono</span>'}
+          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span style="color:var(--red)">Sin teléfono</span>'}
+          <button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="editarTelefono('${id}','${cl.tel||''}')">✏️ ${cl.tel?'Editar tel.':'Agregar tel.'}</button>
           <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px">
@@ -873,8 +896,44 @@ function verCliente(id){
 }
 
 // ══════════════════════════════════════════════════════
-// GESTIONES
+// EDITAR TELÉFONO
 // ══════════════════════════════════════════════════════
+function editarTelefono(clienteId, telActual){
+  document.getElementById('et-id').value = clienteId;
+  document.getElementById('et-tel').value = telActual || '';
+  const cl = getCliente(clienteId);
+  document.getElementById('et-titulo').textContent = (telActual ? 'Editar' : 'Agregar') + ' teléfono — ' + cl.nombre;
+  document.getElementById('modal-telefono').classList.add('open');
+  setTimeout(()=>document.getElementById('et-tel').focus(), 100);
+}
+async function guardarTelefono(){
+  const clienteId = document.getElementById('et-id').value;
+  const tel = document.getElementById('et-tel').value.trim();
+  if(!tel){ alert('Ingresa un número de teléfono'); return; }
+  const btn = document.getElementById('btn-guardar-tel');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  try{
+    await empCol('clientes').doc(String(clienteId)).update({ tel });
+    // Actualizar en memoria local
+    const cl = CLIENTES.find(c => String(c.id) === String(clienteId));
+    if(cl) cl.tel = tel;
+    cerrarModal('modal-telefono');
+    // Refrescar vista
+    renderClientes();
+    renderHoy();
+    // Si estamos en detalle, volver a abrirlo con el dato actualizado
+    if(document.getElementById('detalle-cliente').classList.contains('open')){
+      verCliente(clienteId);
+    }
+  } catch(e){
+    alert('Error al guardar: ' + e.message);
+  }
+  btn.innerHTML = 'Guardar';
+  btn.disabled = false;
+}
+
+
 function filtrarGestiones(q){
   let lista=GESTIONES;
   if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
