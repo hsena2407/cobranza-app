@@ -709,21 +709,10 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Construye un mapa con la ÚLTIMA gestión por cliente.
-  // GESTIONES viene ordenado desc por fecha (y por firestoreId como desempate),
-  // así que la primera vez que vemos un clienteId, esa es su última gestión.
-  const ultimaPorCliente = new Map();
-  GESTIONES.forEach(g=>{
-    const k = String(g.clienteId);
-    if(!ultimaPorCliente.has(k)) ultimaPorCliente.set(k, g);
-  });
-  const ultimas = [...ultimaPorCliente.values()];
-  // Llamar hoy: la última gestión del cliente tiene seguimiento === HOY
-  // y esa gestión NO fue hecha hoy (si fue hoy, ya se atendió).
-  const hoy  = ultimas.filter(g => g.seguimiento === TODAY && g.fecha !== TODAY);
-  // Vencidos: la última gestión del cliente tiene seguimiento < HOY.
-  // Si después hubo otra gestión, esa ya reemplazó el pendiente y este filtro la deja fuera automáticamente.
-  const venc = ultimas.filter(g => g.seguimiento && g.seguimiento < TODAY);
+  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
+  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
+  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
+  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
@@ -775,7 +764,7 @@ function filtrarClientes(q){
   if(q) lista=lista.filter(c=>c.nombre.toLowerCase().includes(q.toLowerCase())||String(c.id).includes(q)||(c.tel||'').includes(q));
   if(fe==='critico') lista=lista.filter(c=>c.dias_91_mas>0);
   else if(fe==='vencido') lista=lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
-  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!(c.dias_1_30>0)&&!(c.dias_31_60>0)&&!(c.dias_61_90>0)&&!(c.dias_91_mas>0));
+  else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!c.dias_1_30&&!c.dias_31_60);
   else if(fe==='renta') lista=lista.filter(c=>c.es_renta);
   renderClientes(lista);
 }
@@ -1476,6 +1465,17 @@ function importarAS(input){
       const seen={};parsed.forEach(cl=>{seen[cl.id]=cl;});parsed=Object.values(seen);
       const withData=parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
       if(withData.length>0){
+        // Leer teléfonos existentes en Firestore para no perderlos al sobreescribir
+        document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Recuperando teléfonos existentes...</p>';
+        const telefonosGuardados={};
+        const cliExistSnap=await empCol('clientes').get();
+        cliExistSnap.docs.forEach(d=>{const tel=d.data().tel;if(tel)telefonosGuardados[d.id]=tel;});
+        // Reinyectar teléfono guardado en cada cliente importado (si el AS no trae uno)
+        withData.forEach(cl=>{
+          if(!cl.tel && telefonosGuardados[String(cl.id)]){
+            cl.tel=telefonosGuardados[String(cl.id)];
+          }
+        });
         // Save to Firestore in batches
         document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Guardando '+withData.length+' clientes en la base de datos...</p>';
         const batchSize=400;
@@ -1521,11 +1521,17 @@ function importarClientes(input){
       const batch=db.batch();
       CLIENTES=CLIENTES.map(cl=>{
         const t=mapa[cl.nombre.toUpperCase()];
-        if(t&&!cl.tel){cl.tel=t;act++;const ref=db.collection('clientes').doc(String(cl.id));batch.update(ref,{tel:t});}
+        // Actualiza si: el archivo trae teléfono Y el cliente aún no tiene (no sobreescribe los existentes)
+        if(t&&!cl.tel){
+          cl.tel=t;
+          act++;
+          const ref=empCol('clientes').doc(String(cl.id)); // ← fix: usar empCol
+          batch.update(ref,{tel:t});
+        }
         return cl;
       });
       if(act>0)await batch.commit();
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos actualizados</p>`;
+      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos nuevos asignados</p>`;
     }catch(err){
       document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
     }
