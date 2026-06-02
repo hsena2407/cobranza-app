@@ -1598,50 +1598,43 @@ function importarClientes(input){
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      const mapa={};
-      // Detectar si es catálogo SAE (tiene encabezado con "Catálogo" o "Clave")
+      const mapaId={};    // id -> tel
+      const maNombre={};  // nombre -> tel
+      // Detectar catálogo SAE
       const esSAE=data.slice(0,10).some(r=>String(r[0]||'').includes('Catálogo')||String(r[1]||'').includes('Catálogo')||String(r[0]||'').trim()==='Clave');
       if(esSAE){
-        // Formato SAE: 4 filas por cliente
-        // Fila 1: [ID, Nombre, Estatus, RFC...]
-        // Fila 2: dirección
-        // Fila 3: [Teléfono, Fax...]
-        // Fila 4: datos crédito
         let i=0;
-        // Saltar encabezados hasta primera fila con ID numérico
         while(i<data.length && !/^\d+$/.test(String(data[i][0]||'').trim())) i++;
         while(i<data.length){
           const fila1=data[i];
-          const id=String(fila1[0]||'').trim();
+          const idCli=String(fila1[0]||'').trim();
           const nombre=String(fila1[1]||'').trim().toUpperCase();
-          if(!id||!/^\d+$/.test(id)){i++;continue;}
-          let tel='';
-          // Buscar teléfono en las siguientes 3 filas (fila de tel empieza con dígitos o paréntesis)
-          for(let j=i+1;j<Math.min(i+4,data.length);j++){
-            const v=String(data[j][0]||'').trim();
-            if(v.match(/^\(?\d{2,3}\)?[\s\-\d]{6,}/)){
-              tel=limpiarTel(v);
-              break;
-            }
+          if(!idCli||!/^\d+$/.test(idCli)){i++;continue;}
+          let tel='', nextCli=i+1;
+          while(nextCli<data.length && nextCli<i+6){
+            const v=String(data[nextCli][0]||'').trim();
+            if(/^\d+$/.test(v) && nextCli>i+1 && (data[nextCli][1]||'').trim()) break;
+            if(/^\(?\d{2,3}\)?[\s\-\d]{6,}/.test(v)) tel=limpiarTel(v);
+            nextCli++;
           }
-          if(nombre&&tel) mapa[nombre]=tel;
-          i+=4;
+          if(tel){ mapaId[idCli]=tel; if(nombre) maNombre[nombre]=tel; }
+          i=nextCli;
         }
       } else {
-        // Formato simple: Col A=Nombre, Col C=Teléfono
         data.forEach(row=>{
           const n=String(row[0]||'').trim().toUpperCase();
           const t=limpiarTel(String(row[2]||'').trim());
-          if(n&&t) mapa[n]=t;
+          if(n&&t) maNombre[n]=t;
         });
       }
       let act=0;
       const batch=db.batch();
       CLIENTES=CLIENTES.map(cl=>{
-        const t=mapa[cl.nombre.toUpperCase()];
-        if(t&&!cl.tel){
-          cl.tel=t;
-          act++;
+        if(cl.tel) return cl; // ya tiene teléfono, no tocar
+        // Match por ID primero (más confiable), luego por nombre
+        const t=mapaId[String(cl.id)] || maNombre[cl.nombre.toUpperCase()];
+        if(t){
+          cl.tel=t; act++;
           const ref=empCol('clientes').doc(String(cl.id));
           batch.update(ref,{tel:t});
         }
@@ -1649,7 +1642,8 @@ function importarClientes(input){
       });
       if(act>0)await batch.commit();
       const tipo=esSAE?'catálogo SAE':'archivo de clientes';
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos del ${tipo} · ${act} teléfonos asignados</p>`;
+      const total=Object.keys(mapaId).length||Object.keys(maNombre).length;
+      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${total} registros leídos del ${tipo} · ${act} teléfonos asignados</p>`;
       renderClientes();
     }catch(err){
       document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
