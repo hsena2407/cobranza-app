@@ -1585,6 +1585,10 @@ function importarAS(input){
   reader.readAsArrayBuffer(file);
 }
 
+function limpiarTel(t){
+  if(!t) return '';
+  return String(t).replace(/[\s()\-\.]/g,'').replace(/^\+?52/,'').trim();
+}
 function importarClientes(input){
   if(!IS_ADMIN){alert('Solo el administrador puede importar clientes');return;}
   const file=input.files[0];if(!file)return;
@@ -1595,24 +1599,61 @@ function importarClientes(input){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       const mapa={};
-      data.forEach(row=>{const n=String(row[0]||'').trim().toUpperCase();const t=String(row[2]||'').trim();if(n&&t)mapa[n]=t;});
+      // Detectar si es catálogo SAE (tiene encabezado con "Catálogo" o "Clave")
+      const esSAE=data.slice(0,10).some(r=>String(r[0]||'').includes('Catálogo')||String(r[1]||'').includes('Catálogo')||String(r[0]||'').trim()==='Clave');
+      if(esSAE){
+        // Formato SAE: 4 filas por cliente
+        // Fila 1: [ID, Nombre, Estatus, RFC...]
+        // Fila 2: dirección
+        // Fila 3: [Teléfono, Fax...]
+        // Fila 4: datos crédito
+        let i=0;
+        // Saltar encabezados hasta primera fila con ID numérico
+        while(i<data.length && !/^\d+$/.test(String(data[i][0]||'').trim())) i++;
+        while(i<data.length){
+          const fila1=data[i];
+          const id=String(fila1[0]||'').trim();
+          const nombre=String(fila1[1]||'').trim().toUpperCase();
+          if(!id||!/^\d+$/.test(id)){i++;continue;}
+          let tel='';
+          // Buscar teléfono en las siguientes 3 filas (fila de tel empieza con dígitos o paréntesis)
+          for(let j=i+1;j<Math.min(i+4,data.length);j++){
+            const v=String(data[j][0]||'').trim();
+            if(v.match(/^\(?\d{2,3}\)?[\s\-\d]{6,}/)){
+              tel=limpiarTel(v);
+              break;
+            }
+          }
+          if(nombre&&tel) mapa[nombre]=tel;
+          i+=4;
+        }
+      } else {
+        // Formato simple: Col A=Nombre, Col C=Teléfono
+        data.forEach(row=>{
+          const n=String(row[0]||'').trim().toUpperCase();
+          const t=limpiarTel(String(row[2]||'').trim());
+          if(n&&t) mapa[n]=t;
+        });
+      }
       let act=0;
       const batch=db.batch();
       CLIENTES=CLIENTES.map(cl=>{
         const t=mapa[cl.nombre.toUpperCase()];
-        // Actualiza si: el archivo trae teléfono Y el cliente aún no tiene (no sobreescribe los existentes)
         if(t&&!cl.tel){
           cl.tel=t;
           act++;
-          const ref=empCol('clientes').doc(String(cl.id)); // ← fix: usar empCol
+          const ref=empCol('clientes').doc(String(cl.id));
           batch.update(ref,{tel:t});
         }
         return cl;
       });
       if(act>0)await batch.commit();
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos nuevos asignados</p>`;
+      const tipo=esSAE?'catálogo SAE':'archivo de clientes';
+      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos del ${tipo} · ${act} teléfonos asignados</p>`;
+      renderClientes();
     }catch(err){
       document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
+      console.error(err);
     }
   };
   reader.readAsArrayBuffer(file);
