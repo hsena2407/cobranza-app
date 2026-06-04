@@ -1587,7 +1587,11 @@ function importarAS(input){
 
 function limpiarTel(t){
   if(!t) return '';
-  return String(t).replace(/[\s()\-\.]/g,'').replace(/^\+?52/,'').trim();
+  // Quitar caracteres no numéricos
+  let s = String(t).replace(/[\s()\-\.]/g,'').replace(/^\+?52/,'').replace(/^1(?=\d{10})/,'').trim();
+  // Si contiene letras (email u otro dato), descartar
+  if(/[a-zA-Z@]/.test(s)) return '';
+  return s;
 }
 function importarClientes(input){
   if(!IS_ADMIN){alert('Solo el administrador puede importar clientes');return;}
@@ -1598,11 +1602,21 @@ function importarClientes(input){
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      const mapaId={};    // id -> tel
-      const maNombre={};  // nombre -> tel
-      // Detectar catálogo SAE
-      const esSAE=data.slice(0,10).some(r=>String(r[0]||'').includes('Catálogo')||String(r[1]||'').includes('Catálogo')||String(r[0]||'').trim()==='Clave');
+      const mapaId={};
+      const mapaNombre={};
+
+      // Detectar formato:
+      // A) Catálogo SAE: tiene encabezado con "Catálogo" o "Clave"
+      // B) Clientes activos: Col A=Nombre, Col B=Teléfono
+      // C) Formato simple anterior: Col A=Nombre, Col C=Teléfono
+      const esSAE=data.slice(0,10).some(r=>
+        String(r[0]||'').includes('Catálogo')||
+        String(r[1]||'').includes('Catálogo')||
+        String(r[0]||'').trim()==='Clave'
+      );
+
       if(esSAE){
+        // Parser catálogo SAE (4 filas por cliente)
         let i=0;
         while(i<data.length && !/^\d+$/.test(String(data[i][0]||'').trim())) i++;
         while(i<data.length){
@@ -1617,36 +1631,41 @@ function importarClientes(input){
             if(/^\(?\d{2,3}\)?[\s\-\d]{6,}/.test(v)) tel=limpiarTel(v);
             nextCli++;
           }
-          if(tel){ mapaId[idCli]=tel; if(nombre) maNombre[nombre]=tel; }
+          if(tel){ mapaId[idCli]=tel; if(nombre) mapaNombre[nombre]=tel; }
           i=nextCli;
         }
       } else {
+        // Detectar si Col B o Col C tiene teléfono
+        // Tomar primera fila con datos para saber el formato
+        const primeraFila=data.find(r=>r[0]&&r[0].toString().trim().length>2);
+        const colTel = (primeraFila && limpiarTel(String(primeraFila[1]||''))) ? 1 : 2;
         data.forEach(row=>{
           const n=String(row[0]||'').trim().toUpperCase();
-          const t=limpiarTel(String(row[2]||'').trim());
-          if(n&&t) maNombre[n]=t;
+          const t=limpiarTel(String(row[colTel]||'').trim());
+          if(n && t && t.length>=7) mapaNombre[n]=t;
         });
       }
+
       let act=0;
       const batch=db.batch();
       CLIENTES=CLIENTES.map(cl=>{
         if(cl.tel) return cl; // ya tiene teléfono, no tocar
-        // Match por ID primero (más confiable), luego por nombre
-        const t=mapaId[String(cl.id)] || maNombre[cl.nombre.toUpperCase()];
-        if(t){
+        const t=mapaId[String(cl.id)] || mapaNombre[cl.nombre.toUpperCase()];
+        if(t && t.length>=7){
           cl.tel=t; act++;
           const ref=empCol('clientes').doc(String(cl.id));
           batch.update(ref,{tel:t});
         }
         return cl;
       });
-      if(act>0)await batch.commit();
-      const tipo=esSAE?'catálogo SAE':'archivo de clientes';
-      const total=Object.keys(mapaId).length||Object.keys(maNombre).length;
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${total} registros leídos del ${tipo} · ${act} teléfonos asignados</p>`;
+      if(act>0) await batch.commit();
+      const total=Object.keys(mapaId).length||Object.keys(mapaNombre).length;
+      document.getElementById('import-cli-status').innerHTML=
+        `<p style="color:var(--green)">✅ ${total} registros leídos · ${act} teléfonos asignados</p>`;
       renderClientes();
     }catch(err){
-      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
+      document.getElementById('import-cli-status').innerHTML=
+        `<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
       console.error(err);
     }
   };
