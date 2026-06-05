@@ -799,15 +799,19 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Mapa de gestión más reciente por cliente (GESTIONES ya viene ordenado desc por fecha)
-  const ultimaGestion = new Map();
-  GESTIONES.forEach(g => { if(!ultimaGestion.has(String(g.clienteId))) ultimaGestion.set(String(g.clienteId), g); });
-  // Gestionados hoy: clientes con al menos una gestión registrada hoy
+  // Clientes que ya tienen al menos una gestión registrada hoy — salen de ambas listas
   const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  // Llamar hoy: última gestión con seguimiento=hoy, sin gestión de hoy ya registrada
-  const hoy = [...ultimaGestion.values()].filter(g => g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  // Seguimientos vencidos: última gestión con seguimiento pasado, sin gestión de hoy ya registrada
-  const venc = [...ultimaGestion.values()].filter(g => g.seguimiento && g.seguimiento<TODAY && !gestionadosHoy.has(String(g.clienteId)));
+  // Para los NO gestionados hoy, tomar solo su gestión más reciente
+  const ultimaGestion = new Map();
+  GESTIONES.forEach(g => {
+    const cid = String(g.clienteId);
+    if(gestionadosHoy.has(cid)) return; // ya gestionado hoy, ignorar
+    if(!ultimaGestion.has(cid)) ultimaGestion.set(cid, g);
+  });
+  // Llamar hoy: última gestión con seguimiento=hoy
+  const hoy = [...ultimaGestion.values()].filter(g => g.seguimiento===TODAY);
+  // Seguimientos vencidos: última gestión con seguimiento pasado
+  const venc = [...ultimaGestion.values()].filter(g => g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
