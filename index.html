@@ -119,6 +119,17 @@ tr:hover td{background:#F8FAFC}
 .loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px}
 
 @media(max-width:768px){.sidebar{display:none}.form-row{grid-template-columns:1fr}}
+
+/* TOASTS */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:500;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.18);pointer-events:all;transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);max-width:340px}
+.toast.show{transform:translateX(0)}
+.toast-success{background:#1E8449}.toast-error{background:#C0392B}.toast-info{background:#2E75B6}.toast-warning{background:#E67E22}
+.toast-icon{font-size:16px;flex-shrink:0}
+/* NAV BADGE */
+.nav-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto}
+/* GESTION ROW clickable */
+.gestion-row{cursor:pointer}.gestion-row:hover td{background:#EBF3FB!important}
 </style>
 </head>
 <body>
@@ -175,9 +186,10 @@ tr:hover td{background:#F8FAFC}
   <div class="layout">
     <div class="sidebar">
       <div class="nav-section">Principal</div>
-      <div class="nav-item active" onclick="showPage('hoy',this)">
+      <div class="nav-item active" onclick="showPage('hoy',this)" id="nav-hoy">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Alertas del día
+        <span class="nav-badge" id="nav-badge-hoy" style="display:none">0</span>
       </div>
       <div class="nav-item" onclick="showPage('clientes',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -382,28 +394,6 @@ tr:hover td{background:#F8FAFC}
   </div>
 </div>
 
-<!-- MODAL TELÉFONO -->
-<div class="modal-bg" id="modal-telefono">
-<div class="modal" style="width:380px">
-  <div class="modal-header">
-    <span class="modal-title" id="et-titulo">Editar teléfono</span>
-    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-telefono')">✕</button>
-  </div>
-  <div class="modal-body">
-    <input type="hidden" id="et-id">
-    <div class="form-group">
-      <label class="form-label">Número de teléfono</label>
-      <input type="tel" class="form-control" id="et-tel" placeholder="Ej: 8112345678"
-        onkeydown="if(event.key==='Enter')guardarTelefono()" style="font-size:16px;letter-spacing:1px">
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn" onclick="cerrarModal('modal-telefono')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarTelefono()" id="btn-guardar-tel">Guardar</button>
-  </div>
-</div>
-</div>
-
 <!-- MODAL GESTIÓN -->
 <div class="modal-bg" id="modal-gestion">
 <div class="modal" style="width:600px">
@@ -536,7 +526,8 @@ tr:hover td{background:#F8FAFC}
     <div class="form-group">
       <label class="form-label">Rol</label>
       <select class="form-control" id="nu-rol">
-        <option value="gestor">Gestor (solo registra sus llamadas)</option>
+        <option value="gestor">Gestor (registra llamadas)</option>
+        <option value="viewer">Consulta (solo lectura)</option>
         <option value="admin">Administrador (acceso completo)</option>
       </select>
     </div>
@@ -545,6 +536,23 @@ tr:hover td{background:#F8FAFC}
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-usuario')">Cancelar</button>
     <button class="btn btn-primary" onclick="crearUsuario()" id="btn-crear-usuario">Crear usuario</button>
+  </div>
+</div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- MODAL DETALLE GESTIÓN -->
+<div class="modal-bg" id="modal-detalle-gestion">
+<div class="modal" style="width:560px">
+  <div class="modal-header">
+    <span class="modal-title" id="mdg-titulo">Detalle de gestión</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-detalle-gestion')">✕</button>
+  </div>
+  <div class="modal-body" id="mdg-body"></div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-detalle-gestion')">Cerrar</button>
   </div>
 </div>
 </div>
@@ -571,6 +579,7 @@ const db = firebase.firestore();
 let CURRENT_USER = null;
 let IS_ADMIN = false;
 let IS_SUPER = false;
+let IS_VIEWER = false;
 let EMPRESA_ID = null;
 let EMPRESA_NOMBRE = 'Sistema de Cobranza';
 let EMPRESA_ACTIVA = false;
@@ -580,7 +589,7 @@ let RENTA_DATA = {};
 let UNSUBSCRIBE_GESTIONES = null;
 
 const TODAY = new Date().toISOString().split('T')[0];
-const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate = d => {
   if(!d) return '—';
   try{ return new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); }
@@ -619,6 +628,7 @@ auth.onAuthStateChanged(async user => {
       const data = userDoc.data();
       IS_ADMIN = data.rol === 'admin' || data.rol === 'super';
       IS_SUPER = data.rol === 'super';
+      IS_VIEWER = data.rol === 'viewer';
       EMPRESA_ID = data.empresaId || null;
       document.getElementById('user-name-chip').textContent = data.nombre || user.email;
     } else {
@@ -639,6 +649,11 @@ auth.onAuthStateChanged(async user => {
       document.getElementById('admin-chip').style.display = 'inline';
       document.getElementById('admin-chip').textContent = IS_SUPER ? 'SUPER' : 'ADMIN';
       document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+    }
+    if(IS_VIEWER){
+      document.getElementById('admin-chip').style.display = 'inline';
+      document.getElementById('admin-chip').textContent = 'CONSULTA';
+      document.getElementById('admin-chip').style.background = '#6B7280';
     }
     if(IS_SUPER){
       document.querySelectorAll('.super-only').forEach(el=>el.style.display='flex');
@@ -715,6 +730,59 @@ function suscribirGestiones(){
 }
 
 // ══════════════════════════════════════════════════════
+// TOASTS
+// ══════════════════════════════════════════════════════
+function toast(msg, tipo='info', duracion=3500){
+  const icons={success:'✅',error:'❌',info:'ℹ️',warning:'⚠️'};
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className=`toast toast-${tipo}`;
+  t.innerHTML=`<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),350);},duracion);
+}
+
+// ══════════════════════════════════════════════════════
+// DETALLE GESTIÓN (modal)
+// ══════════════════════════════════════════════════════
+function verDetalleGestion(firestoreId){
+  const g=GESTIONES.find(x=>x.firestoreId===firestoreId);
+  if(!g) return;
+  const cl=getCliente(g.clienteId);
+  const facDetail=(g.facturasComprometidas||[]).length>0
+    ?`<div style="margin-top:6px">${g.facturasComprometidas.map(f=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #F0F4F8"><span style="font-weight:500">${f.doc}</span><span style="color:var(--red)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>`).join('')}</div>`
+    :'<span style="color:var(--muted);font-size:12px">Ninguna seleccionada</span>';
+  const abonoHtml=g.esAbono&&g.montoAbono
+    ?`<div style="margin-top:6px;padding:8px;background:var(--amber-l);border-radius:6px;font-size:12px;color:#92400e">Abono: <strong>$${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>`:'';
+  document.getElementById('mdg-titulo').textContent=`Gestión — ${cl.nombre}`;
+  document.getElementById('mdg-body').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Fecha y hora</div>
+        <div style="font-size:13px;font-weight:500">${fmtDate(g.fecha)} ${g.hora?'· '+g.hora:''}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Medio</div>
+        <div style="font-size:13px">${g.medio||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Resultado</div>
+        <div>${resultadoPill(g.resultado)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Contacto</div>
+        <div style="font-size:13px">${g.contacto||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Gestor</div>
+        <div style="font-size:13px">${g.gestorNombre||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Próx. seguimiento</div>
+        <div style="font-size:13px;${g.seguimiento&&g.seguimiento<TODAY?'color:var(--red);font-weight:600':g.seguimiento===TODAY?'color:var(--amber);font-weight:600':''}">${fmtDate(g.seguimiento)}</div></div>
+    </div>
+    ${g.compromiso>0?`<div style="background:var(--alt);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--muted)">Compromiso total</span>
+      <strong style="font-size:16px;color:var(--red)">$${Number(g.compromiso).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+    </div>`:''}
+    <div style="margin-bottom:12px"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:6px">Facturas comprometidas</div>${facDetail}${abonoHtml}</div>
+    <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:6px">Notas</div>
+      <div style="background:var(--gray);border-radius:8px;padding:12px;font-size:13px;line-height:1.6;min-height:60px;white-space:pre-wrap">${g.notas||'<span style="color:var(--muted)">Sin notas</span>'}</div></div>
+  `;
+  document.getElementById('modal-detalle-gestion').classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════════════════
 function showPage(id, el){
@@ -734,27 +802,7 @@ function renderHoy(){
   // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
   const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
   const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-
-  // Vencidos: por cada cliente, tomar solo su gestión MÁS RECIENTE.
-  // Solo aparece si esa gestión tiene seguimiento vencido (< hoy) Y no tiene
-  // ninguna gestión posterior que ya lo haya atendido (fecha >= seguimiento).
-  const ultimaPorCliente = {};
-  GESTIONES.forEach(g => {
-    const cid = String(g.clienteId);
-    if(!ultimaPorCliente[cid] || g.fecha > ultimaPorCliente[cid].fecha){
-      ultimaPorCliente[cid] = g;
-    }
-  });
-  const venc = Object.values(ultimaPorCliente).filter(g => {
-    if(!g.seguimiento || g.seguimiento >= TODAY) return false;
-    // Verificar que no existe una gestión posterior a ese seguimiento
-    const hayGestionPosterior = GESTIONES.some(g2 =>
-      String(g2.clienteId) === String(g.clienteId) &&
-      g2.firestoreId !== g.firestoreId &&
-      g2.fecha >= g.seguimiento
-    );
-    return !hayGestionPosterior;
-  });
+  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
@@ -771,10 +819,15 @@ function renderHoy(){
   `;
   document.getElementById('badge-hoy').textContent = hoy.length+' hoy';
   document.getElementById('badge-renta').textContent = rentaAlerta+' renta';
+  // Sidebar badges
+  const nb=document.getElementById('nav-badge-hoy');
+  const total=hoy.length+venc.length;
+  if(nb){nb.textContent=total;nb.style.display=total>0?'inline':'none';}
   const makeRow=(g,showVenc)=>{
     const cl=getCliente(g.clienteId);
     const est=estatusCliente(cl);
     const dateCol=showVenc?`<td style="color:var(--red)">${fmtDate(g.seguimiento)}</td>`:'';
+    const accionBtn=IS_VIEWER?'':`<button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>`;
     return `<tr>
       <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${g.clienteId}</span></td>
       <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
@@ -785,7 +838,7 @@ function renderHoy(){
       <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td>
         <button class="btn btn-sm" onclick="verCliente('${g.clienteId}');showPage('clientes',document.querySelectorAll('.nav-item')[1])">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>
+        ${accionBtn}
       </td>
     </tr>`;
   };
@@ -827,13 +880,13 @@ function renderClientes(lista){
     return `<tr>
       <td style="color:var(--muted)">${cl.id}</td>
       <td><strong>${cl.nombre}</strong></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:`<button class="btn btn-sm" style="font-size:11px;color:var(--amber);border-color:var(--amber)" onclick="editarTelefono('${cl.id}','')">+ Tel.</button>`}</td>
+      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
       <td style="text-align:right"><strong>${fmt(cl.saldo_total)}</strong></td>
       <td><span class="pill ${est.cls}">${est.label}</span></td>
       <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
       <td>
         <button class="btn btn-sm" onclick="verCliente('${cl.id}')">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+        ${IS_VIEWER?'':`<button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -852,8 +905,7 @@ function verCliente(id){
       <div style="flex:1">
         <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
-          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span style="color:var(--red)">Sin teléfono</span>'}
-          <button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="editarTelefono('${id}','${cl.tel||''}')">✏️ ${cl.tel?'Editar tel.':'Agregar tel.'}</button>
+          ${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);font-weight:500">📞 ${cl.tel}</a>`:'<span>Sin teléfono</span>'}
           <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px">
@@ -861,7 +913,7 @@ function verCliente(id){
           ${cl.es_renta?'<span class="pill pill-purple">Renta</span>':''}
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>
+      ${IS_VIEWER?'':`<button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>`}
     </div>
     <div class="info-grid">
       <div class="info-box"><div class="info-box-label">Saldo total</div><div class="info-box-value" style="color:${cl.saldo_total>0?'var(--red)':'var(--green)'}">${fmt(cl.saldo_total)}</div></div>
@@ -899,7 +951,8 @@ function verCliente(id){
             ?g.facturasComprometidas.map(f=>`<div style="font-size:11px;white-space:nowrap"><span style="font-weight:500">${f.doc}</span> <span style="color:var(--muted)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>`).join('')
             :'<span style="color:var(--muted);font-size:11px">—</span>';
           const abonoNote=g.esAbono&&g.montoAbono?`<div style="font-size:10px;color:var(--amber)">Abono: $${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2})}</div>`:'';
-          return `<tr>
+          const notasPreview=g.notas?(g.notas.length>50?g.notas.slice(0,50)+'…':g.notas):'—';
+          return `<tr class="gestion-row" onclick="verDetalleGestion('${g.firestoreId}')" title="Click para ver detalle completo">
           <td>${fmtDate(g.fecha)}<br><span style="font-size:10px;color:var(--muted)">${g.hora||''}</span></td>
           <td>${g.medio}</td>
           <td>${resultadoPill(g.resultado)}</td>
@@ -907,7 +960,7 @@ function verCliente(id){
           <td style="text-align:right;font-weight:600;color:var(--red)">${g.compromiso>0?fmt(g.compromiso):'—'}</td>
           <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
           <td style="${g.seguimiento<TODAY?'color:var(--red)':g.seguimiento===TODAY?'color:var(--amber)':''}">${fmtDate(g.seguimiento)}</td>
-          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${notasPreview}</td>
         </tr>`}).join('')}</tbody>
       </table></div>`:'<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
     </div>
@@ -916,44 +969,8 @@ function verCliente(id){
 }
 
 // ══════════════════════════════════════════════════════
-// EDITAR TELÉFONO
+// GESTIONES
 // ══════════════════════════════════════════════════════
-function editarTelefono(clienteId, telActual){
-  document.getElementById('et-id').value = clienteId;
-  document.getElementById('et-tel').value = telActual || '';
-  const cl = getCliente(clienteId);
-  document.getElementById('et-titulo').textContent = (telActual ? 'Editar' : 'Agregar') + ' teléfono — ' + cl.nombre;
-  document.getElementById('modal-telefono').classList.add('open');
-  setTimeout(()=>document.getElementById('et-tel').focus(), 100);
-}
-async function guardarTelefono(){
-  const clienteId = document.getElementById('et-id').value;
-  const tel = document.getElementById('et-tel').value.trim();
-  if(!tel){ alert('Ingresa un número de teléfono'); return; }
-  const btn = document.getElementById('btn-guardar-tel');
-  btn.innerHTML = '<span class="spinner"></span>';
-  btn.disabled = true;
-  try{
-    await empCol('clientes').doc(String(clienteId)).update({ tel });
-    // Actualizar en memoria local
-    const cl = CLIENTES.find(c => String(c.id) === String(clienteId));
-    if(cl) cl.tel = tel;
-    cerrarModal('modal-telefono');
-    // Refrescar vista
-    renderClientes();
-    renderHoy();
-    // Si estamos en detalle, volver a abrirlo con el dato actualizado
-    if(document.getElementById('detalle-cliente').classList.contains('open')){
-      verCliente(clienteId);
-    }
-  } catch(e){
-    alert('Error al guardar: ' + e.message);
-  }
-  btn.innerHTML = 'Guardar';
-  btn.disabled = false;
-}
-
-
 function filtrarGestiones(q){
   let lista=GESTIONES;
   if(q) lista=lista.filter(g=>{const cl=getCliente(g.clienteId);return cl.nombre.toLowerCase().includes(q.toLowerCase())||g.resultado?.toLowerCase().includes(q.toLowerCase())||g.gestorNombre?.toLowerCase().includes(q.toLowerCase());});
@@ -964,14 +981,15 @@ function renderGestiones(lista){
   document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
     const cl=getCliente(g.clienteId);
     const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
-    return `<tr>
+    const notasPreview=g.notas?(g.notas.length>40?g.notas.slice(0,40)+'…':g.notas):'—';
+    return `<tr class="gestion-row" onclick="verDetalleGestion('${g.firestoreId}')" title="Click para ver detalle completo">
       <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
       <td><strong>${cl.nombre}</strong></td>
       <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
       <td>${resultadoPill(g.resultado)}</td>
       <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td style="${sc}">${fmtDate(g.seguimiento)}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${notasPreview}</td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
@@ -1098,8 +1116,9 @@ function calcularAbonoFacturas(){
   document.getElementById('mg-total-compromiso').textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 async function guardarGestion(){
+  if(IS_VIEWER){toast('No tienes permisos para registrar gestiones','error');return;}
   const clienteId=document.getElementById('mg-cliente').value;
-  if(!clienteId){alert('Selecciona un cliente');return;}
+  if(!clienteId){toast('Selecciona un cliente','warning');return;}
   const btn=document.getElementById('btn-guardar-gestion');
   btn.innerHTML='<span class="spinner"></span> Guardando...';btn.disabled=true;
   try{
@@ -1129,7 +1148,8 @@ async function guardarGestion(){
       creado:firebase.firestore.FieldValue.serverTimestamp()
     });
     cerrarModal('modal-gestion');
-  }catch(e){alert('Error al guardar: '+e.message);}
+    toast('Gestión guardada correctamente','success');
+  }catch(e){toast('Error al guardar: '+e.message,'error');}
   btn.innerHTML='Guardar';btn.disabled=false;
 }
 
@@ -1185,6 +1205,7 @@ async function guardarRenta(){
   await empCol('renta_config').doc(String(id)).set(data);
   RENTA_DATA[id]=data;
   cerrarModal('modal-renta');
+  toast('Renta actualizada','success');
   renderRenta();
   renderHoy();
 }
@@ -1236,7 +1257,7 @@ async function crearUsuario(){
     document.getElementById('nu-email').value='';
     document.getElementById('nu-pass').value='';
     renderUsuarios();
-    alert('Usuario creado exitosamente.');
+    toast('Usuario creado exitosamente','success');
   }catch(e){
     err.textContent='Error: '+e.message;err.style.display='block';
     btn.innerHTML='Crear usuario';btn.disabled=false;
@@ -1415,9 +1436,8 @@ async function crearEmpresa(){
     await ref.set({nombre,creado:firebase.firestore.FieldValue.serverTimestamp(),totalClientes:0});
     cerrarModal('modal-empresa');
     await renderEmpresas();
-    // Populate empresa selector in usuario modal
     await cargarEmpresasSelector();
-    alert('Empresa "'+nombre+'" creada. Ahora puedes crear usuarios y asignarlos a esta empresa.');
+    toast('Empresa "'+nombre+'" creada exitosamente','success');
   }catch(e){err.textContent='Error: '+e.message;err.style.display='block';}
   btn.innerHTML='Crear empresa';btn.disabled=false;
 }
@@ -1437,7 +1457,7 @@ function abrirModalUsuario(){
 // IMPORTAR AS
 // ══════════════════════════════════════════════════════
 function importarAS(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar la AS');return;}
+  if(!IS_ADMIN){toast('Solo el administrador puede importar la AS','error');return;}
   const file=input.files[0];if(!file)return;
   document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Procesando...</p>';
   const reader=new FileReader();
@@ -1544,17 +1564,6 @@ function importarAS(input){
       const seen={};parsed.forEach(cl=>{seen[cl.id]=cl;});parsed=Object.values(seen);
       const withData=parsed.filter(c=>c.saldo_total!==0||c.facturas.length>0||c.es_renta);
       if(withData.length>0){
-        // Leer teléfonos existentes en Firestore para no perderlos al sobreescribir
-        document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Recuperando teléfonos existentes...</p>';
-        const telefonosGuardados={};
-        const cliExistSnap=await empCol('clientes').get();
-        cliExistSnap.docs.forEach(d=>{const tel=d.data().tel;if(tel)telefonosGuardados[d.id]=tel;});
-        // Reinyectar teléfono guardado en cada cliente importado (si el AS no trae uno)
-        withData.forEach(cl=>{
-          if(!cl.tel && telefonosGuardados[String(cl.id)]){
-            cl.tel=telefonosGuardados[String(cl.id)];
-          }
-        });
         // Save to Firestore in batches
         document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Guardando '+withData.length+' clientes en la base de datos...</p>';
         const batchSize=400;
@@ -1568,7 +1577,7 @@ function importarAS(input){
         }
         CLIENTES=withData;
         const total=withData.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-        const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+        const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
         const texto=new Date().toLocaleDateString('es-MX')+' — '+withData.length+' clientes · '+fmtN(total);
         await db.collection('meta').doc('importacion').set({texto,fecha:new Date()});
         document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+withData.length+' clientes importados · Saldo '+fmtN(total)+'</p>';
@@ -1585,16 +1594,8 @@ function importarAS(input){
   reader.readAsArrayBuffer(file);
 }
 
-function limpiarTel(t){
-  if(!t) return '';
-  // Quitar caracteres no numéricos
-  let s = String(t).replace(/[\s()\-\.]/g,'').replace(/^\+?52/,'').replace(/^1(?=\d{10})/,'').trim();
-  // Si contiene letras (email u otro dato), descartar
-  if(/[a-zA-Z@]/.test(s)) return '';
-  return s;
-}
 function importarClientes(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar clientes');return;}
+  if(!IS_ADMIN){toast('Solo el administrador puede importar clientes','error');return;}
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=async e=>{
@@ -1602,71 +1603,19 @@ function importarClientes(input){
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      const mapaId={};
-      const mapaNombre={};
-
-      // Detectar formato:
-      // A) Catálogo SAE: tiene encabezado con "Catálogo" o "Clave"
-      // B) Clientes activos: Col A=Nombre, Col B=Teléfono
-      // C) Formato simple anterior: Col A=Nombre, Col C=Teléfono
-      const esSAE=data.slice(0,10).some(r=>
-        String(r[0]||'').includes('Catálogo')||
-        String(r[1]||'').includes('Catálogo')||
-        String(r[0]||'').trim()==='Clave'
-      );
-
-      if(esSAE){
-        // Parser catálogo SAE (4 filas por cliente)
-        let i=0;
-        while(i<data.length && !/^\d+$/.test(String(data[i][0]||'').trim())) i++;
-        while(i<data.length){
-          const fila1=data[i];
-          const idCli=String(fila1[0]||'').trim();
-          const nombre=String(fila1[1]||'').trim().toUpperCase();
-          if(!idCli||!/^\d+$/.test(idCli)){i++;continue;}
-          let tel='', nextCli=i+1;
-          while(nextCli<data.length && nextCli<i+6){
-            const v=String(data[nextCli][0]||'').trim();
-            if(/^\d+$/.test(v) && nextCli>i+1 && (data[nextCli][1]||'').trim()) break;
-            if(/^\(?\d{2,3}\)?[\s\-\d]{6,}/.test(v)) tel=limpiarTel(v);
-            nextCli++;
-          }
-          if(tel){ mapaId[idCli]=tel; if(nombre) mapaNombre[nombre]=tel; }
-          i=nextCli;
-        }
-      } else {
-        // Detectar si Col B o Col C tiene teléfono
-        // Tomar primera fila con datos para saber el formato
-        const primeraFila=data.find(r=>r[0]&&r[0].toString().trim().length>2);
-        const colTel = (primeraFila && limpiarTel(String(primeraFila[1]||''))) ? 1 : 2;
-        data.forEach(row=>{
-          const n=String(row[0]||'').trim().toUpperCase();
-          const t=limpiarTel(String(row[colTel]||'').trim());
-          if(n && t && t.length>=7) mapaNombre[n]=t;
-        });
-      }
-
+      const mapa={};
+      data.forEach(row=>{const n=String(row[0]||'').trim().toUpperCase();const t=String(row[2]||'').trim();if(n&&t)mapa[n]=t;});
       let act=0;
       const batch=db.batch();
       CLIENTES=CLIENTES.map(cl=>{
-        if(cl.tel) return cl; // ya tiene teléfono, no tocar
-        const t=mapaId[String(cl.id)] || mapaNombre[cl.nombre.toUpperCase()];
-        if(t && t.length>=7){
-          cl.tel=t; act++;
-          const ref=empCol('clientes').doc(String(cl.id));
-          batch.update(ref,{tel:t});
-        }
+        const t=mapa[cl.nombre.toUpperCase()];
+        if(t&&!cl.tel){cl.tel=t;act++;const ref=db.collection('clientes').doc(String(cl.id));batch.update(ref,{tel:t});}
         return cl;
       });
-      if(act>0) await batch.commit();
-      const total=Object.keys(mapaId).length||Object.keys(mapaNombre).length;
-      document.getElementById('import-cli-status').innerHTML=
-        `<p style="color:var(--green)">✅ ${total} registros leídos · ${act} teléfonos asignados</p>`;
-      renderClientes();
+      if(act>0)await batch.commit();
+      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos actualizados</p>`;
     }catch(err){
-      document.getElementById('import-cli-status').innerHTML=
-        `<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
-      console.error(err);
+      document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
     }
   };
   reader.readAsArrayBuffer(file);
@@ -1703,7 +1652,7 @@ function consultarCobranza(){
   const fin=document.getElementById('cob-fin').value;
   const gestorId=document.getElementById('cob-gestor')?.value||'';
   const filtroRes=document.getElementById('cob-resultado')?.value||'';
-  if(!ini||!fin){alert('Selecciona un rango de fechas');return;}
+  if(!ini||!fin){toast('Selecciona un rango de fechas','warning');return;}
   let base=GESTIONES.filter(g=>g.fecha>=ini&&g.fecha<=fin);
   if(gestorId)base=base.filter(g=>g.gestorId===gestorId);
   let tablaGest=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
