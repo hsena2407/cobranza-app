@@ -8,7 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 :root{
@@ -120,6 +120,14 @@ tr:hover td{background:#F8FAFC}
 .loading-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:14px}
 
 @media(max-width:768px){.sidebar{display:none}.form-row{grid-template-columns:1fr}}
+/* TOASTS */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:9px;font-size:13px;font-weight:500;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.18);pointer-events:all;transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);max-width:340px}
+.toast.show{transform:translateX(0)}
+.toast-success{background:#1E8449}.toast-error{background:#C0392B}.toast-info{background:#2E75B6}.toast-warning{background:#E67E22}
+.toast-icon{font-size:16px;flex-shrink:0}
+.nav-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto}
+.gestion-row{cursor:pointer}.gestion-row:hover td{background:#EBF3FB!important}
 </style>
 </head>
 <body>
@@ -176,13 +184,10 @@ tr:hover td{background:#F8FAFC}
   <div class="layout">
     <div class="sidebar">
       <div class="nav-section">Principal</div>
-      <div class="nav-item admin-only" onclick="showPage('dashboard',this)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Dashboard
-      </div>
-      <div class="nav-item active" onclick="showPage('hoy',this)">
+      <div class="nav-item active" onclick="showPage('hoy',this)" id="nav-hoy">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Alertas del día
+        <span class="nav-badge" id="nav-badge-hoy" style="display:none">0</span>
       </div>
       <div class="nav-item" onclick="showPage('clientes',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -223,36 +228,6 @@ tr:hover td{background:#F8FAFC}
     </div>
 
     <div class="main">
-
-      <!-- DASHBOARD -->
-      <div class="page" id="page-dashboard">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="font-size:16px;font-weight:700;color:var(--nav)">Dashboard de cobranza</h2>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:12px;color:var(--muted)">Período:</span>
-            <button class="btn btn-sm" id="dash-btn-sem" onclick="setDashPeriodo('semana')" style="background:var(--blue);color:#fff;border-color:var(--blue)">Semanal</button>
-            <button class="btn btn-sm" id="dash-btn-mes" onclick="setDashPeriodo('mes')">Mensual</button>
-          </div>
-        </div>
-        <!-- KPIs rápidos -->
-        <div class="kpi-grid" id="dash-kpis" style="margin-bottom:20px"></div>
-        <!-- Fila superior: Tendencia + Gestores -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-          <div class="card">
-            <div class="card-header"><span class="card-title">Recuperación en el tiempo</span><span id="dash-periodo-label" style="font-size:11px;color:var(--muted)"></span></div>
-            <div style="padding:16px"><canvas id="chart-tendencia" height="200"></canvas></div>
-          </div>
-          <div class="card">
-            <div class="card-header"><span class="card-title">Gestiones por gestor</span></div>
-            <div style="padding:16px"><canvas id="chart-gestores" height="200"></canvas></div>
-          </div>
-        </div>
-        <!-- Top 10 deudores -->
-        <div class="card">
-          <div class="card-header"><span class="card-title">Top 10 — Mayor saldo vencido</span><span style="font-size:11px;color:var(--muted)">Suma: 31-60 + 61-90 + 91+ días</span></div>
-          <div style="padding:16px"><canvas id="chart-top10" height="160"></canvas></div>
-        </div>
-      </div>
 
       <!-- HOY -->
       <div class="page active" id="page-hoy">
@@ -411,6 +386,20 @@ tr:hover td{background:#F8FAFC}
           </div>
           <div id="import-cli-status" style="margin-top:12px"></div>
         </div>
+        <div class="card" style="padding:20px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Importar conceptos CFDI (ZIP de XMLs)</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Sube el ZIP descargado del SAT. Se extraerán los conceptos de cada factura para mostrarlos en el detalle del cliente.</p>
+          <div class="import-zone" onclick="document.getElementById('file-cfdi').click()">
+            <input type="file" id="file-cfdi" accept=".zip" onchange="importarCFDI(this)">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5" style="margin:0 auto 12px;display:block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            <p style="font-size:14px;font-weight:500;margin-bottom:4px">Selecciona archivo ZIP con XMLs del SAT</p>
+            <p style="font-size:12px;color:var(--muted)">Contiene los XMLs de tus facturas emitidas</p>
+          </div>
+          <div id="import-cfdi-status" style="margin-top:12px"></div>
+          <div style="background:var(--alt);border-radius:8px;padding:12px;margin-top:14px;font-size:13px">
+            <strong>Última importación CFDI:</strong> <span id="ultima-cfdi">Sin importaciones</span>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -549,7 +538,8 @@ tr:hover td{background:#F8FAFC}
     <div class="form-group">
       <label class="form-label">Rol</label>
       <select class="form-control" id="nu-rol">
-        <option value="gestor">Gestor (solo registra sus llamadas)</option>
+        <option value="gestor">Gestor (registra llamadas)</option>
+        <option value="viewer">Consulta (solo lectura)</option>
         <option value="admin">Administrador (acceso completo)</option>
       </select>
     </div>
@@ -558,6 +548,23 @@ tr:hover td{background:#F8FAFC}
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-usuario')">Cancelar</button>
     <button class="btn btn-primary" onclick="crearUsuario()" id="btn-crear-usuario">Crear usuario</button>
+  </div>
+</div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- MODAL DETALLE GESTIÓN -->
+<div class="modal-bg" id="modal-detalle-gestion">
+<div class="modal" style="width:560px">
+  <div class="modal-header">
+    <span class="modal-title" id="mdg-titulo">Detalle de gestión</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-detalle-gestion')">✕</button>
+  </div>
+  <div class="modal-body" id="mdg-body"></div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-detalle-gestion')">Cerrar</button>
   </div>
 </div>
 </div>
@@ -584,16 +591,18 @@ const db = firebase.firestore();
 let CURRENT_USER = null;
 let IS_ADMIN = false;
 let IS_SUPER = false;
+let IS_VIEWER = false;
 let EMPRESA_ID = null;
 let EMPRESA_NOMBRE = 'Sistema de Cobranza';
 let EMPRESA_ACTIVA = false;
 let CLIENTES = [];
 let GESTIONES = [];
 let RENTA_DATA = {};
+let CFDI_CONCEPTOS = {};
 let UNSUBSCRIBE_GESTIONES = null;
 
-const TODAY = new Date().toISOString().split('T')[0];
-const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+const _d=new Date(); const TODAY=[_d.getFullYear(),String(_d.getMonth()+1).padStart(2,'0'),String(_d.getDate()).padStart(2,'0')].join('-');
+const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate = d => {
   if(!d) return '—';
   try{ return new Date(d+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}); }
@@ -632,6 +641,7 @@ auth.onAuthStateChanged(async user => {
       const data = userDoc.data();
       IS_ADMIN = data.rol === 'admin' || data.rol === 'super';
       IS_SUPER = data.rol === 'super';
+      IS_VIEWER = data.rol === 'viewer';
       EMPRESA_ID = data.empresaId || null;
       document.getElementById('user-name-chip').textContent = data.nombre || user.email;
     } else {
@@ -652,6 +662,11 @@ auth.onAuthStateChanged(async user => {
       document.getElementById('admin-chip').style.display = 'inline';
       document.getElementById('admin-chip').textContent = IS_SUPER ? 'SUPER' : 'ADMIN';
       document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+    }
+    if(IS_VIEWER){
+      document.getElementById('admin-chip').style.display = 'inline';
+      document.getElementById('admin-chip').textContent = 'CONSULTA';
+      document.getElementById('admin-chip').style.background = '#6B7280';
     }
     if(IS_SUPER){
       document.querySelectorAll('.super-only').forEach(el=>el.style.display='flex');
@@ -706,6 +721,7 @@ async function cargarDatos(){
   if(metaDoc.exists){
     document.getElementById('ultima-importacion').textContent = metaDoc.data().texto || '—';
   }
+  await cargarCFDIConceptos();
   renderHoy();
   renderClientes();
   renderRenta();
@@ -728,6 +744,59 @@ function suscribirGestiones(){
 }
 
 // ══════════════════════════════════════════════════════
+// TOASTS
+// ══════════════════════════════════════════════════════
+function toast(msg, tipo='info', duracion=3500){
+  const icons={success:'✅',error:'❌',info:'ℹ️',warning:'⚠️'};
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className=`toast toast-${tipo}`;
+  t.innerHTML=`<span class="toast-icon">${icons[tipo]||'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),350);},duracion);
+}
+
+// ══════════════════════════════════════════════════════
+// DETALLE GESTIÓN (modal)
+// ══════════════════════════════════════════════════════
+function verDetalleGestion(firestoreId){
+  const g=GESTIONES.find(x=>x.firestoreId===firestoreId);
+  if(!g) return;
+  const cl=getCliente(g.clienteId);
+  const facDetail=(g.facturasComprometidas||[]).length>0
+    ?`<div style="margin-top:6px">${g.facturasComprometidas.map(f=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #F0F4F8"><span style="font-weight:500">${f.doc}</span><span style="color:var(--red)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>`).join('')}</div>`
+    :'<span style="color:var(--muted);font-size:12px">Ninguna seleccionada</span>';
+  const abonoHtml=g.esAbono&&g.montoAbono
+    ?`<div style="margin-top:6px;padding:8px;background:var(--amber-l);border-radius:6px;font-size:12px;color:#92400e">Abono: <strong>$${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>`:'';
+  document.getElementById('mdg-titulo').textContent=`Gestión — ${cl.nombre}`;
+  document.getElementById('mdg-body').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Fecha y hora</div>
+        <div style="font-size:13px;font-weight:500">${fmtDate(g.fecha)} ${g.hora?'· '+g.hora:''}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Medio</div>
+        <div style="font-size:13px">${g.medio||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Resultado</div>
+        <div>${resultadoPill(g.resultado)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Contacto</div>
+        <div style="font-size:13px">${g.contacto||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Gestor</div>
+        <div style="font-size:13px">${g.gestorNombre||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:3px">Próx. seguimiento</div>
+        <div style="font-size:13px;${g.seguimiento&&g.seguimiento<TODAY?'color:var(--red);font-weight:600':g.seguimiento===TODAY?'color:var(--amber);font-weight:600':''}">${fmtDate(g.seguimiento)}</div></div>
+    </div>
+    ${g.compromiso>0?`<div style="background:var(--alt);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--muted)">Compromiso total</span>
+      <strong style="font-size:16px;color:var(--red)">$${Number(g.compromiso).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+    </div>`:''}
+    <div style="margin-bottom:12px"><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:6px">Facturas comprometidas</div>${facDetail}${abonoHtml}</div>
+    <div><div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:6px">Notas</div>
+      <div style="background:var(--gray);border-radius:8px;padding:12px;font-size:13px;line-height:1.6;min-height:60px;white-space:pre-wrap">${g.notas||'<span style="color:var(--muted)">Sin notas</span>'}</div></div>
+  `;
+  document.getElementById('modal-detalle-gestion').classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════════════════
 function showPage(id, el){
@@ -738,177 +807,19 @@ function showPage(id, el){
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
-  if(id==='dashboard') renderDashboard();
-}
-
-// ══════════════════════════════════════════════════════
-// DASHBOARD
-// ══════════════════════════════════════════════════════
-let DASH_PERIODO = 'semana';
-let _chartTendencia = null, _chartGestores = null, _chartTop10 = null;
-
-function setDashPeriodo(p){
-  DASH_PERIODO = p;
-  document.getElementById('dash-btn-sem').style.cssText = p==='semana' ? 'background:var(--blue);color:#fff;border-color:var(--blue)' : '';
-  document.getElementById('dash-btn-mes').style.cssText = p==='mes' ? 'background:var(--blue);color:#fff;border-color:var(--blue)' : '';
-  renderDashboard();
-}
-
-function renderDashboard(){
-  if(!EMPRESA_ACTIVA) return;
-
-  // ── KPIs rápidos ──
-  const totalCartera = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-  const totalVencido = CLIENTES.reduce((a,c)=>a+(c.dias_31_60||0)+(c.dias_61_90||0)+(c.dias_91_mas||0),0);
-  const criticos = CLIENTES.filter(c=>c.dias_91_mas>=1).length;
-  const totalCompromisoMes = GESTIONES.filter(g=>{
-    const d=new Date(); const ini=new Date(d.getFullYear(),d.getMonth(),1).toISOString().split('T')[0];
-    return g.fecha>=ini && (g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
-  }).reduce((a,g)=>a+(g.compromiso||0),0);
-  const pagadoMes = GESTIONES.filter(g=>{
-    const d=new Date(); const ini=new Date(d.getFullYear(),d.getMonth(),1).toISOString().split('T')[0];
-    return g.fecha>=ini && g.resultado==='Pagado confirmado';
-  }).reduce((a,g)=>a+(g.compromiso||0),0);
-  const eficiencia = totalCartera>0 ? Math.round((pagadoMes/totalCartera)*100) : 0;
-
-  document.getElementById('dash-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">Cartera total</div><div class="kpi-value" style="font-size:18px">${fmt(totalCartera)}</div></div>
-    <div class="kpi"><div class="kpi-label">Cartera vencida</div><div class="kpi-value danger" style="font-size:18px">${fmt(totalVencido)}</div></div>
-    <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger" style="font-size:18px">${criticos}</div></div>
-    <div class="kpi"><div class="kpi-label">Compromisos este mes</div><div class="kpi-value warning" style="font-size:18px">${fmt(totalCompromisoMes)}</div></div>
-    <div class="kpi"><div class="kpi-label">Pagado confirmado (mes)</div><div class="kpi-value success" style="font-size:18px">${fmt(pagadoMes)}</div></div>
-    <div class="kpi"><div class="kpi-label">% Recuperación</div><div class="kpi-value ${eficiencia>10?'success':'warning'}" style="font-size:18px">${eficiencia}%</div></div>
-  `;
-
-  // ── Generar períodos ──
-  const periodos = [];
-  const hoy = new Date();
-  if(DASH_PERIODO==='semana'){
-    // Últimas 8 semanas
-    for(let i=7;i>=0;i--){
-      const d=new Date(hoy); d.setDate(hoy.getDate()-i*7);
-      const lunes=new Date(d); lunes.setDate(d.getDate()-d.getDay()+1);
-      const dom=new Date(lunes); dom.setDate(lunes.getDate()+6);
-      periodos.push({
-        label:'S'+lunes.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit'}),
-        ini:lunes.toISOString().split('T')[0],
-        fin:dom.toISOString().split('T')[0]
-      });
-    }
-    document.getElementById('dash-periodo-label').textContent='Últimas 8 semanas';
-  } else {
-    // Últimos 6 meses
-    for(let i=5;i>=0;i--){
-      const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
-      const fin=new Date(d.getFullYear(),d.getMonth()+1,0);
-      periodos.push({
-        label:d.toLocaleDateString('es-MX',{month:'short',year:'2-digit'}),
-        ini:d.toISOString().split('T')[0],
-        fin:fin.toISOString().split('T')[0]
-      });
-    }
-    document.getElementById('dash-periodo-label').textContent='Últimos 6 meses';
-  }
-
-  const labels = periodos.map(p=>p.label);
-  const comprData = periodos.map(p=>
-    GESTIONES.filter(g=>g.fecha>=p.ini&&g.fecha<=p.fin&&(g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado'))
-      .reduce((a,g)=>a+(g.compromiso||0),0)
-  );
-  const pagData = periodos.map(p=>
-    GESTIONES.filter(g=>g.fecha>=p.ini&&g.fecha<=p.fin&&g.resultado==='Pagado confirmado')
-      .reduce((a,g)=>a+(g.compromiso||0),0)
-  );
-
-  // ── Chart 1: Tendencia ──
-  if(_chartTendencia) _chartTendencia.destroy();
-  _chartTendencia = new Chart(document.getElementById('chart-tendencia'), {
-    type:'line',
-    data:{
-      labels,
-      datasets:[
-        {label:'Compromisos',data:comprData,borderColor:'#E67E22',backgroundColor:'rgba(230,126,34,.1)',tension:.35,fill:true,pointRadius:4,pointBackgroundColor:'#E67E22'},
-        {label:'Pagado confirmado',data:pagData,borderColor:'#1E8449',backgroundColor:'rgba(30,132,73,.1)',tension:.35,fill:true,pointRadius:4,pointBackgroundColor:'#1E8449'}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},
-      scales:{
-        y:{ticks:{callback:v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v,font:{size:10}},grid:{color:'#F0F4F8'}},
-        x:{ticks:{font:{size:10}},grid:{display:false}}
-      }
-    }
-  });
-
-  // ── Chart 2: Gestores ──
-  const gestoresMap = {};
-  GESTIONES.forEach(g=>{
-    if(!g.gestorNombre) return;
-    if(!gestoresMap[g.gestorNombre]) gestoresMap[g.gestorNombre]={count:0,monto:0};
-    gestoresMap[g.gestorNombre].count++;
-    gestoresMap[g.gestorNombre].monto+=(g.compromiso||0);
-  });
-  const gestLabels = Object.keys(gestoresMap);
-  const gestCounts = gestLabels.map(k=>gestoresMap[k].count);
-  const gestMontos = gestLabels.map(k=>gestoresMap[k].monto);
-
-  if(_chartGestores) _chartGestores.destroy();
-  _chartGestores = new Chart(document.getElementById('chart-gestores'), {
-    type:'bar',
-    data:{
-      labels:gestLabels,
-      datasets:[
-        {label:'Gestiones',data:gestCounts,backgroundColor:'#2E75B6',borderRadius:4,yAxisID:'y'},
-        {label:'Monto comprometido',data:gestMontos,backgroundColor:'rgba(230,126,34,.75)',borderRadius:4,yAxisID:'y2'}
-      ]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},
-      scales:{
-        y:{position:'left',ticks:{font:{size:10}},grid:{color:'#F0F4F8'},title:{display:true,text:'Gestiones',font:{size:10}}},
-        y2:{position:'right',ticks:{callback:v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v,font:{size:10}},grid:{display:false},title:{display:true,text:'Monto $',font:{size:10}}},
-        x:{ticks:{font:{size:10}},grid:{display:false}}
-      }
-    }
-  });
-
-  // ── Chart 3: Top 10 deudores ──
-  const top10 = [...CLIENTES]
-    .map(c=>({nombre:c.nombre,vencido:(c.dias_31_60||0)+(c.dias_61_90||0)+(c.dias_91_mas||0)}))
-    .filter(c=>c.vencido>0)
-    .sort((a,b)=>b.vencido-a.vencido)
-    .slice(0,10);
-
-  const top10Labels = top10.map(c=>c.nombre.length>22?c.nombre.slice(0,22)+'…':c.nombre);
-  const top10Data = top10.map(c=>c.vencido);
-  const top10Colors = top10.map(c=>c.vencido>100000?'#C0392B':c.vencido>50000?'#E67E22':'#2E75B6');
-
-  if(_chartTop10) _chartTop10.destroy();
-  _chartTop10 = new Chart(document.getElementById('chart-top10'), {
-    type:'bar',
-    data:{labels:top10Labels,datasets:[{label:'Saldo vencido',data:top10Data,backgroundColor:top10Colors,borderRadius:4}]},
-    options:{
-      indexAxis:'y',
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'#F0F4F8'}},
-        y:{ticks:{font:{size:11}},grid:{display:false}}
-      }
-    }
-  });
 }
 
 // ══════════════════════════════════════════════════════
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
-  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  // Mapa de gestión MÁS RECIENTE por cliente (GESTIONES viene ordenado desc)
+  const ultimaGestion = new Map();
+  GESTIONES.forEach(g => { const cid=String(g.clienteId); if(!ultimaGestion.has(cid)) ultimaGestion.set(cid,g); });
+  // Llamar hoy: última gestión con seguimiento=hoy
+  const hoy = [...ultimaGestion.values()].filter(g => g.seguimiento===TODAY);
+  // Vencidos: última gestión con seguimiento pasado (sin importar cuándo fue la gestión)
+  const venc = [...ultimaGestion.values()].filter(g => g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
@@ -925,10 +836,14 @@ function renderHoy(){
   `;
   document.getElementById('badge-hoy').textContent = hoy.length+' hoy';
   document.getElementById('badge-renta').textContent = rentaAlerta+' renta';
+  const nb=document.getElementById('nav-badge-hoy');
+  const total=hoy.length+venc.length;
+  if(nb){nb.textContent=total;nb.style.display=total>0?'inline':'none';}
   const makeRow=(g,showVenc)=>{
     const cl=getCliente(g.clienteId);
     const est=estatusCliente(cl);
     const dateCol=showVenc?`<td style="color:var(--red)">${fmtDate(g.seguimiento)}</td>`:'';
+    const accionBtn=IS_VIEWER?'':`<button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>`;
     return `<tr>
       <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${g.clienteId}</span></td>
       <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
@@ -939,7 +854,7 @@ function renderHoy(){
       <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td>
         <button class="btn btn-sm" onclick="verCliente('${g.clienteId}');showPage('clientes',document.querySelectorAll('.nav-item')[1])">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${g.clienteId}')">Llamar</button>
+        ${accionBtn}
       </td>
     </tr>`;
   };
@@ -987,7 +902,7 @@ function renderClientes(lista){
       <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
       <td>
         <button class="btn btn-sm" onclick="verCliente('${cl.id}')">Ver</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+        ${IS_VIEWER?'':`<button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -1014,7 +929,7 @@ function verCliente(id){
           ${cl.es_renta?'<span class="pill pill-purple">Renta</span>':''}
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>
+      ${IS_VIEWER?'':`<button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>`}
     </div>
     <div class="info-grid">
       <div class="info-box"><div class="info-box-label">Saldo total</div><div class="info-box-value" style="color:${cl.saldo_total>0?'var(--red)':'var(--green)'}">${fmt(cl.saldo_total)}</div></div>
@@ -1030,17 +945,47 @@ function verCliente(id){
         <span style="font-size:12px;color:var(--muted)">${facsPend.length} documentos</span>
       </div>
       ${facsPend.length?`<div class="table-wrap"><table>
-        <thead><tr><th>Documento</th><th>Fecha</th><th>Saldo ($)</th><th>Al corriente</th><th>1-30 días</th><th>31-60 días</th><th>61-90 días</th><th>91+ días</th></tr></thead>
-        <tbody>${facsPend.map(f=>`<tr>
-          <td style="font-weight:500">${f.doc}</td>
-          <td style="color:var(--muted)">${f.fecha}</td>
-          <td style="text-align:right;font-weight:600">${fmt(f.saldo)}</td>
-          <td style="text-align:right;color:var(--green)">${f.al_corriente>0?fmt(f.al_corriente):'—'}</td>
-          <td style="text-align:right;color:var(--amber)">${f['1_30']>0?fmt(f['1_30']):'—'}</td>
-          <td style="text-align:right;color:var(--amber)">${f['31_60']>0?fmt(f['31_60']):'—'}</td>
-          <td style="text-align:right;color:var(--red)">${f['61_90']>0?fmt(f['61_90']):'—'}</td>
-          <td style="text-align:right;color:var(--red);font-weight:${f['91_mas']>0?'700':'400'}">${f['91_mas']>0?fmt(f['91_mas']):'—'}</td>
-        </tr>`).join('')}</tbody>
+        <thead><tr><th style="width:28px"></th><th>Documento</th><th>Fecha</th><th>Saldo ($)</th><th>Al corriente</th><th>1-30 días</th><th>31-60 días</th><th>61-90 días</th><th>91+ días</th></tr></thead>
+        <tbody>${facsPend.map(f=>{
+          const conceptos=CFDI_CONCEPTOS[f.doc]||[];
+          const hasC=conceptos.length>0;
+          const rowId='cfdi_'+f.doc.replace(/[^a-zA-Z0-9]/g,'_');
+          const toggleBtn=hasC
+            ?`<button data-toggle="1" onclick="event.stopPropagation();toggleConceptos('${rowId}')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:12px;padding:0">▶</button>`
+            :'<span style="color:#CBD5E1;font-size:11px">—</span>';
+          const conceptosRow=hasC?`<tr id="${rowId}" style="display:none;background:#F8FAFC">
+            <td colspan="9" style="padding:0">
+              <div style="padding:10px 16px 10px 44px">
+                <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Conceptos del CFDI</div>
+                <table style="width:100%">
+                  <thead><tr>
+                    <th style="font-size:10px;padding:4px 8px;background:var(--alt);font-weight:600;text-align:left">Descripción</th>
+                    <th style="font-size:10px;padding:4px 8px;background:var(--alt);font-weight:600;text-align:center">Cant.</th>
+                    <th style="font-size:10px;padding:4px 8px;background:var(--alt);font-weight:600;text-align:right">Unitario</th>
+                    <th style="font-size:10px;padding:4px 8px;background:var(--alt);font-weight:600;text-align:right">Importe</th>
+                  </tr></thead>
+                  <tbody>${conceptos.map(c=>`<tr>
+                    <td style="font-size:12px;padding:5px 8px;border-bottom:1px solid #EBF3FB">${c.descripcion}</td>
+                    <td style="font-size:12px;padding:5px 8px;border-bottom:1px solid #EBF3FB;text-align:center;color:var(--muted)">${c.cantidad} ${c.unidad||''}</td>
+                    <td style="font-size:12px;padding:5px 8px;border-bottom:1px solid #EBF3FB;text-align:right;color:var(--muted)">${fmt(c.valorUnitario)}</td>
+                    <td style="font-size:12px;padding:5px 8px;border-bottom:1px solid #EBF3FB;text-align:right;font-weight:600">${fmt(c.importe)}</td>
+                  </tr>`).join('')}</tbody>
+                </table>
+              </div>
+            </td>
+          </tr>`:'';
+          return `<tr>
+            <td style="text-align:center">${toggleBtn}</td>
+            <td style="font-weight:500">${f.doc}</td>
+            <td style="color:var(--muted)">${f.fecha}</td>
+            <td style="text-align:right;font-weight:600">${fmt(f.saldo)}</td>
+            <td style="text-align:right;color:var(--green)">${f.al_corriente>0?fmt(f.al_corriente):'—'}</td>
+            <td style="text-align:right;color:var(--amber)">${f['1_30']>0?fmt(f['1_30']):'—'}</td>
+            <td style="text-align:right;color:var(--amber)">${f['31_60']>0?fmt(f['31_60']):'—'}</td>
+            <td style="text-align:right;color:var(--red)">${f['61_90']>0?fmt(f['61_90']):'—'}</td>
+            <td style="text-align:right;color:var(--red);font-weight:${f['91_mas']>0?'700':'400'}">${f['91_mas']>0?fmt(f['91_mas']):'—'}</td>
+          </tr>${conceptosRow}`;
+        }).join('')}</tbody>
       </table></div>`:'<p style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Sin facturas pendientes</p>'}
     </div>
     <div class="card">
@@ -1052,7 +997,8 @@ function verCliente(id){
             ?g.facturasComprometidas.map(f=>`<div style="font-size:11px;white-space:nowrap"><span style="font-weight:500">${f.doc}</span> <span style="color:var(--muted)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>`).join('')
             :'<span style="color:var(--muted);font-size:11px">—</span>';
           const abonoNote=g.esAbono&&g.montoAbono?`<div style="font-size:10px;color:var(--amber)">Abono: $${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2})}</div>`:'';
-          return `<tr>
+          const notasPreview=g.notas?(g.notas.length>50?g.notas.slice(0,50)+'…':g.notas):'—';
+          return `<tr class="gestion-row" onclick="verDetalleGestion('${g.firestoreId}')" title="Click para ver detalle completo">
           <td>${fmtDate(g.fecha)}<br><span style="font-size:10px;color:var(--muted)">${g.hora||''}</span></td>
           <td>${g.medio}</td>
           <td>${resultadoPill(g.resultado)}</td>
@@ -1060,7 +1006,7 @@ function verCliente(id){
           <td style="text-align:right;font-weight:600;color:var(--red)">${g.compromiso>0?fmt(g.compromiso):'—'}</td>
           <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
           <td style="${g.seguimiento<TODAY?'color:var(--red)':g.seguimiento===TODAY?'color:var(--amber)':''}">${fmtDate(g.seguimiento)}</td>
-          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${notasPreview}</td>
         </tr>`}).join('')}</tbody>
       </table></div>`:'<p style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin gestiones registradas</p>'}
     </div>
@@ -1081,14 +1027,15 @@ function renderGestiones(lista){
   document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
     const cl=getCliente(g.clienteId);
     const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
-    return `<tr>
+    const notasPreview=g.notas?(g.notas.length>40?g.notas.slice(0,40)+'…':g.notas):'—';
+    return `<tr class="gestion-row" onclick="verDetalleGestion('${g.firestoreId}')" title="Click para ver detalle completo">
       <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
       <td><strong>${cl.nombre}</strong></td>
       <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
       <td>${resultadoPill(g.resultado)}</td>
       <td style="font-size:12px;color:var(--muted)">${g.gestorNombre||'—'}</td>
       <td style="${sc}">${fmtDate(g.seguimiento)}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${g.notas||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)">${notasPreview}</td>
     </tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin gestiones registradas</td></tr>';
 }
@@ -1215,8 +1162,9 @@ function calcularAbonoFacturas(){
   document.getElementById('mg-total-compromiso').textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 async function guardarGestion(){
+  if(IS_VIEWER){toast('No tienes permisos para registrar gestiones','error');return;}
   const clienteId=document.getElementById('mg-cliente').value;
-  if(!clienteId){alert('Selecciona un cliente');return;}
+  if(!clienteId){toast('Selecciona un cliente','warning');return;}
   const btn=document.getElementById('btn-guardar-gestion');
   btn.innerHTML='<span class="spinner"></span> Guardando...';btn.disabled=true;
   try{
@@ -1246,7 +1194,8 @@ async function guardarGestion(){
       creado:firebase.firestore.FieldValue.serverTimestamp()
     });
     cerrarModal('modal-gestion');
-  }catch(e){alert('Error al guardar: '+e.message);}
+    toast('Gestión guardada correctamente','success');
+  }catch(e){toast('Error al guardar: '+e.message,'error');}
   btn.innerHTML='Guardar';btn.disabled=false;
 }
 
@@ -1302,6 +1251,7 @@ async function guardarRenta(){
   await empCol('renta_config').doc(String(id)).set(data);
   RENTA_DATA[id]=data;
   cerrarModal('modal-renta');
+  toast('Renta actualizada','success');
   renderRenta();
   renderHoy();
 }
@@ -1353,7 +1303,7 @@ async function crearUsuario(){
     document.getElementById('nu-email').value='';
     document.getElementById('nu-pass').value='';
     renderUsuarios();
-    alert('Usuario creado exitosamente.');
+    toast('Usuario creado exitosamente','success');
   }catch(e){
     err.textContent='Error: '+e.message;err.style.display='block';
     btn.innerHTML='Crear usuario';btn.disabled=false;
@@ -1534,7 +1484,7 @@ async function crearEmpresa(){
     await renderEmpresas();
     // Populate empresa selector in usuario modal
     await cargarEmpresasSelector();
-    alert('Empresa "'+nombre+'" creada. Ahora puedes crear usuarios y asignarlos a esta empresa.');
+    toast('Empresa "'+nombre+'" creada exitosamente','success');
   }catch(e){err.textContent='Error: '+e.message;err.style.display='block';}
   btn.innerHTML='Crear empresa';btn.disabled=false;
 }
@@ -1554,7 +1504,7 @@ function abrirModalUsuario(){
 // IMPORTAR AS
 // ══════════════════════════════════════════════════════
 function importarAS(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar la AS');return;}
+  if(!IS_ADMIN){toast('Solo el administrador puede importar la AS','error');return;}
   const file=input.files[0];if(!file)return;
   document.getElementById('import-status').innerHTML='<p style="color:var(--amber)">⏳ Procesando...</p>';
   const reader=new FileReader();
@@ -1674,7 +1624,7 @@ function importarAS(input){
         }
         CLIENTES=withData;
         const total=withData.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
-        const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+        const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
         const texto=new Date().toLocaleDateString('es-MX')+' — '+withData.length+' clientes · '+fmtN(total);
         await db.collection('meta').doc('importacion').set({texto,fecha:new Date()});
         document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+withData.length+' clientes importados · Saldo '+fmtN(total)+'</p>';
@@ -1692,7 +1642,7 @@ function importarAS(input){
 }
 
 function importarClientes(input){
-  if(!IS_ADMIN){alert('Solo el administrador puede importar clientes');return;}
+  if(!IS_ADMIN){toast('Solo el administrador puede importar clientes','error');return;}
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=async e=>{
@@ -1716,6 +1666,89 @@ function importarClientes(input){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════════════════
+// CFDI — importar ZIP de XMLs
+// ══════════════════════════════════════════════════════
+function normalizarFolio(serie, folio){
+  const folioStr=String(folio||'').trim();
+  const serieStr=String(serie||'').trim();
+  if(!serieStr) return folioStr;
+  return serieStr+folioStr.padStart(10,'0');
+}
+async function importarCFDI(input){
+  if(!IS_ADMIN){toast('Solo el administrador puede importar CFDIs','error');return;}
+  const file=input.files[0];if(!file)return;
+  const statusEl=document.getElementById('import-cfdi-status');
+  statusEl.innerHTML='<p style="color:var(--amber)">⏳ Leyendo ZIP...</p>';
+  try{
+    const arrayBuffer=await file.arrayBuffer();
+    const zip=await JSZip.loadAsync(arrayBuffer);
+    const xmlFiles=Object.values(zip.files).filter(f=>f.name.toLowerCase().endsWith('.xml')&&!f.dir);
+    statusEl.innerHTML='<p style="color:var(--amber)">⏳ Procesando '+xmlFiles.length+' XMLs...</p>';
+    const conceptosMap={};
+    let procesados=0,errores=0;
+    for(const xmlFile of xmlFiles){
+      try{
+        const xmlStr=await xmlFile.async('string');
+        const parser=new DOMParser();
+        const doc=parser.parseFromString(xmlStr,'application/xml');
+        const comp=doc.querySelector('Comprobante');
+        if(!comp) continue;
+        const serie=comp.getAttribute('Serie')||'';
+        const folio=comp.getAttribute('Folio')||'';
+        if(!folio) continue;
+        const docKey=normalizarFolio(serie,folio);
+        const conceptosNodes=doc.querySelectorAll('Conceptos > Concepto');
+        const conceptos=[...conceptosNodes].map(c=>({
+          descripcion:c.getAttribute('Descripcion')||'',
+          cantidad:parseFloat(c.getAttribute('Cantidad')||0),
+          valorUnitario:parseFloat(c.getAttribute('ValorUnitario')||0),
+          importe:parseFloat(c.getAttribute('Importe')||0),
+          unidad:c.getAttribute('Unidad')||c.getAttribute('ClaveUnidad')||''
+        })).filter(c=>c.descripcion);
+        if(conceptos.length>0){conceptosMap[docKey]=conceptos;procesados++;}
+      }catch(e){errores++;}
+    }
+    statusEl.innerHTML='<p style="color:var(--amber)">⏳ Guardando '+procesados+' facturas...</p>';
+    const keys=Object.keys(conceptosMap);
+    for(let i=0;i<keys.length;i+=400){
+      const batch=db.batch();
+      keys.slice(i,i+400).forEach(k=>{
+        const ref=empCol('cfdi_conceptos').doc(k);
+        batch.set(ref,{conceptos:conceptosMap[k],actualizado:new Date()});
+      });
+      await batch.commit();
+    }
+    Object.assign(CFDI_CONCEPTOS,conceptosMap);
+    const texto=new Date().toLocaleDateString('es-MX')+' — '+procesados+' facturas · '+xmlFiles.length+' XMLs';
+    await empCol('meta').doc('cfdi_importacion').set({texto,fecha:new Date()});
+    document.getElementById('ultima-cfdi').textContent=texto;
+    statusEl.innerHTML='<p style="color:var(--green)">✅ '+procesados+' facturas importadas'+(errores>0?' · '+errores+' errores ignorados':'')+'</p>';
+    toast('Conceptos CFDI importados correctamente','success');
+  }catch(e){
+    statusEl.innerHTML='<p style="color:var(--red)">❌ Error: '+e.message+'</p>';
+    toast('Error al importar CFDI: '+e.message,'error');
+  }
+  input.value='';
+}
+async function cargarCFDIConceptos(){
+  if(!EMPRESA_ACTIVA) return;
+  try{
+    const snap=await empCol('cfdi_conceptos').get();
+    CFDI_CONCEPTOS={};
+    snap.docs.forEach(d=>{CFDI_CONCEPTOS[d.id]=d.data().conceptos||[];});
+    const metaDoc=await empCol('meta').doc('cfdi_importacion').get();
+    if(metaDoc.exists){const el=document.getElementById('ultima-cfdi');if(el)el.textContent=metaDoc.data().texto||'—';}
+  }catch(e){console.warn('CFDI no disponibles:',e.message);}
+}
+function toggleConceptos(rowId){
+  const row=document.getElementById(rowId);if(!row)return;
+  const visible=row.style.display!=='none';
+  row.style.display=visible?'none':'table-row';
+  const btn=row.previousElementSibling?.querySelector('button[data-toggle]');
+  if(btn)btn.textContent=visible?'▶':'▼';
 }
 
 // COBRANZA
@@ -1749,7 +1782,7 @@ function consultarCobranza(){
   const fin=document.getElementById('cob-fin').value;
   const gestorId=document.getElementById('cob-gestor')?.value||'';
   const filtroRes=document.getElementById('cob-resultado')?.value||'';
-  if(!ini||!fin){alert('Selecciona un rango de fechas');return;}
+  if(!ini||!fin){toast('Selecciona un rango de fechas','warning');return;}
   let base=GESTIONES.filter(g=>g.fecha>=ini&&g.fecha<=fin);
   if(gestorId)base=base.filter(g=>g.gestorId===gestorId);
   let tablaGest=base.filter(g=>g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'||g.resultado==='Pagado confirmado');
