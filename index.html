@@ -724,10 +724,18 @@ function showPage(id, el){
 // HOY
 // ══════════════════════════════════════════════════════
 function renderHoy(){
-  // Clientes con seguimiento hoy, excluyendo los que ya tienen gestión registrada hoy
-  const gestionadosHoy = new Set(GESTIONES.filter(g=>g.fecha===TODAY).map(g=>String(g.clienteId)));
-  const hoy = GESTIONES.filter(g=>g.seguimiento===TODAY && !gestionadosHoy.has(String(g.clienteId)));
-  const venc = GESTIONES.filter(g=>g.seguimiento && g.seguimiento<TODAY);
+  // Una sola entrada por cliente: su gestión MÁS RECIENTE (GESTIONES ya viene
+  // ordenado desc por fecha, así que el primer registro por clienteId es el último).
+  // Esto evita que gestiones viejas ya resueltas por una llamada posterior sigan
+  // apareciendo como pendientes o vencidas.
+  const ultimaGestion = new Map();
+  GESTIONES.forEach(g=>{
+    const cid = String(g.clienteId);
+    if(!ultimaGestion.has(cid)) ultimaGestion.set(cid, g);
+  });
+  const ultimas = [...ultimaGestion.values()];
+  const hoy = ultimas.filter(g=>g.seguimiento===TODAY);
+  const venc = ultimas.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
   const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
