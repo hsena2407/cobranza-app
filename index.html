@@ -14,6 +14,7 @@
   --nav:#1F3864;--blue:#2E75B6;--white:#fff;--alt:#EBF3FB;--brd:#BDD7EE;
   --red:#C0392B;--red-l:#FCE4D6;--green:#1E8449;--green-l:#D5F5E3;
   --amber:#E67E22;--amber-l:#FEF9E7;--purple:#4A235A;--purple-l:#EAD8F7;
+  --teal:#0E7C7B;--teal-l:#DFF6F5;
   --gray:#F4F6F8;--text:#1a1a1a;--muted:#6B7280
 }
 body{background:var(--gray);color:var(--text);min-height:100vh}
@@ -70,6 +71,7 @@ tr:hover td{background:#F8FAFC}
 .pill-red{background:var(--red-l);color:var(--red)}.pill-amber{background:var(--amber-l);color:#92400e}
 .pill-green{background:var(--green-l);color:var(--green)}.pill-blue{background:var(--alt);color:var(--blue)}
 .pill-purple{background:var(--purple-l);color:var(--purple)}.pill-gray{background:#F3F4F6;color:#6B7280}
+.pill-teal{background:var(--teal-l);color:var(--teal)}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--brd);background:#fff;cursor:pointer;color:var(--text)}
 .btn:hover{background:var(--alt)}
 .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-primary:hover{background:#1d5fa3}
@@ -100,6 +102,7 @@ tr:hover td{background:#F8FAFC}
 .detail-header{background:#fff;border:1px solid var(--brd);border-radius:10px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .avatar{width:48px;height:48px;border-radius:50%;background:var(--alt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
 .avatar.renta{background:var(--purple-l);color:var(--purple)}
+.avatar.financ{background:var(--teal-l);color:var(--teal)}
 .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .info-box{background:#fff;border:1px solid var(--brd);border-radius:8px;padding:10px 12px}
 .info-box-label{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:500;text-transform:uppercase}
@@ -192,6 +195,10 @@ tr:hover td{background:#F8FAFC}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         Clientes renta
       </div>
+      <div class="nav-item" onclick="showPage('financiamiento',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Financiamiento equipo
+      </div>
       <div class="nav-section admin-only">Reportes</div>
       <div class="nav-item admin-only" onclick="showPage('cobranza',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -249,6 +256,7 @@ tr:hover td{background:#F8FAFC}
               <option value="vencido">Vencido</option>
               <option value="corriente">Al corriente</option>
               <option value="renta">Renta</option>
+              <option value="financiamiento">Financiamiento</option>
             </select>
           </div>
           <div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Antigüedad</th><th>Tipo</th><th></th></tr></thead><tbody id="tbody-clientes"></tbody></table></div></div>
@@ -280,6 +288,18 @@ tr:hover td{background:#F8FAFC}
         <div class="card">
           <div class="card-header"><span class="card-title" style="color:var(--purple)">Clientes de renta — seguimiento mensual</span></div>
           <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- FINANCIAMIENTO DE EQUIPO -->
+      <div class="page" id="page-financiamiento">
+        <div style="background:var(--teal-l);border:1px solid #9ad9d8;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;font-weight:500;color:var(--teal);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span id="banner-financiamiento"></span>
+          <button class="btn btn-sm" style="border-color:var(--teal);color:var(--teal)" onclick="abrirModalFinanciamiento()">+ Marcar cliente como financiamiento</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title" style="color:var(--teal)">Clientes de financiamiento de equipo — mensualidad</span></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Mensualidad ($)</th><th>Próx. pago</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-financiamiento"></tbody></table></div>
         </div>
       </div>
 
@@ -406,7 +426,7 @@ tr:hover td{background:#F8FAFC}
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Medio</label>
-        <select class="form-control" id="mg-medio"><option>Llamada</option><option>WhatsApp</option><option>Email</option><option>Visita</option><option>Buzón de voz</option><option>Portal web</option></select>
+        <select class="form-control" id="mg-medio"><option>Llamada</option><option>WhatsApp</option><option>Email</option><option>Visita</option><option>Buzón de voz</option><option>Portal web</option><option>Interno</option></select>
       </div>
       <div class="form-group"><label class="form-label">Contacto que atendió</label><input type="text" class="form-control" id="mg-contacto" placeholder="Nombre"></div>
     </div>
@@ -474,6 +494,30 @@ tr:hover td{background:#F8FAFC}
 </div>
 </div>
 
+<!-- MODAL FINANCIAMIENTO DE EQUIPO -->
+<div class="modal-bg" id="modal-financiamiento">
+<div class="modal">
+  <div class="modal-header">
+    <span class="modal-title" id="mf-titulo">Marcar cliente como financiamiento</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-financiamiento')">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="mf-id">
+    <div class="form-group" id="mf-cliente-grupo">
+      <label class="form-label">Cliente</label>
+      <select class="form-control" id="mf-cliente"></select>
+    </div>
+    <div class="form-group"><label class="form-label">Mensualidad ($)</label><input type="number" class="form-control" id="mf-monto" placeholder="0.00"></div>
+    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" class="form-control" id="mf-vencimiento"></div>
+    <div class="form-group"><label class="form-label">Notas del contrato</label><textarea class="form-control" id="mf-notas" rows="2" placeholder="Ej: equipo de cómputo, paga el día 5 de cada mes..."></textarea></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="cerrarModal('modal-financiamiento')">Cancelar</button>
+    <button class="btn btn-primary" onclick="guardarFinanciamiento()">Guardar</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL EMPRESA -->
 <div class="modal-bg" id="modal-empresa">
 <div class="modal">
@@ -527,6 +571,17 @@ tr:hover td{background:#F8FAFC}
 </div>
 </div>
 
+<!-- MODAL DETALLE GESTIÓN (ver notas completas) -->
+<div class="modal-bg" id="modal-nota">
+<div class="modal" style="width:460px">
+  <div class="modal-header">
+    <span class="modal-title">Detalle de gestión</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-nota')">✕</button>
+  </div>
+  <div class="modal-body" id="modal-nota-body"></div>
+</div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════
 // FIREBASE INIT
@@ -555,9 +610,32 @@ let EMPRESA_ACTIVA = false;
 let CLIENTES = [];
 let GESTIONES = [];
 let RENTA_DATA = {};
+let FINANC_DATA = {};
 let UNSUBSCRIBE_GESTIONES = null;
 
-const TODAY = new Date().toISOString().split('T')[0];
+// Fecha LOCAL en formato YYYY-MM-DD (evita el bug de toISOString(), que devuelve
+// la fecha en UTC y por las tardes/noches en México ya marca el día siguiente).
+function toLocalISO(d){
+  const off = d.getTimezoneOffset()*60000;
+  return new Date(d.getTime()-off).toISOString().split('T')[0];
+}
+const TODAY = toLocalISO(new Date());
+
+// Mensaje flotante de confirmación (verde=éxito, rojo=error)
+function toast(msg,type){
+  let el=document.getElementById('app-toast');
+  if(!el){
+    el=document.createElement('div');
+    el.id='app-toast';
+    el.style.cssText='position:fixed;bottom:24px;right:24px;z-index:999;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.18);color:#fff;opacity:0;transition:opacity .25s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.style.background = type==='error' ? '#C0392B' : '#1E8449';
+  el.textContent = (type==='error' ? '⚠️ ' : '✅ ') + msg;
+  el.style.opacity='1';
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.style.opacity='0';},2600);
+}
 const fmt = n => '$'+Math.abs(Number(n)).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
 const fmtDate = d => {
   if(!d) return '—';
@@ -582,7 +660,30 @@ function resultadoPill(r){
   if(r.includes('contestó')||r.includes('equivocado')) return `<span class="pill pill-gray">${r}</span>`;
   return `<span class="pill pill-blue">${r}</span>`;
 }
-function getCliente(id){ return CLIENTES.find(c=>c.id==id)||{nombre:'?',tel:'',saldo_total:0,es_renta:false,facturas:[]} }
+function getCliente(id){ return CLIENTES.find(c=>c.id==id)||{nombre:'?',tel:'',saldo_total:0,es_renta:false,es_financiamiento:false,facturas:[]} }
+
+function verGestionDetalle(fid){
+  const g=GESTIONES.find(x=>String(x.firestoreId)===String(fid));
+  if(!g) return;
+  const cl=getCliente(g.clienteId);
+  const facts=(g.facturasComprometidas||[]).map(f=>`${f.doc}: $${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}`).join('<br>')||'—';
+  document.getElementById('modal-nota-body').innerHTML=`
+    <div style="font-size:14px;font-weight:600;margin-bottom:12px">${cl.nombre}</div>
+    <div class="info-grid" style="margin-bottom:14px">
+      <div class="info-box"><div class="info-box-label">Fecha</div><div class="info-box-value">${fmtDate(g.fecha)} ${g.hora||''}</div></div>
+      <div class="info-box"><div class="info-box-label">Medio</div><div class="info-box-value">${g.medio||'—'}</div></div>
+      <div class="info-box"><div class="info-box-label">Resultado</div><div class="info-box-value">${g.resultado||'—'}</div></div>
+      <div class="info-box"><div class="info-box-label">Gestor</div><div class="info-box-value">${g.gestorNombre||'—'}</div></div>
+      <div class="info-box"><div class="info-box-label">Compromiso</div><div class="info-box-value">${g.compromiso>0?fmt(g.compromiso):'—'}</div></div>
+      <div class="info-box"><div class="info-box-label">Próx. seguimiento</div><div class="info-box-value">${fmtDate(g.seguimiento)}</div></div>
+    </div>
+    <div class="form-label" style="margin-bottom:6px">Facturas comprometidas</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${facts}</div>
+    <div class="form-label" style="margin-bottom:6px">Notas</div>
+    <div style="background:#F8FAFC;border:1px solid #EBF3FB;border-radius:8px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-word">${g.notas||'Sin notas'}</div>
+  `;
+  document.getElementById('modal-nota').classList.add('open');
+}
 
 async function editarTelefono(id){
   const cl=CLIENTES.find(c=>String(c.id)===String(id));
@@ -596,7 +697,8 @@ async function editarTelefono(id){
     renderClientes();
     if(document.getElementById('detalle-cliente').classList.contains('open')) verCliente(id);
     renderHoy();
-  }catch(e){ alert('Error al guardar el teléfono: '+e.message); }
+    toast('Teléfono actualizado');
+  }catch(e){ toast('Error al guardar el teléfono: '+e.message,'error'); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -682,6 +784,9 @@ async function cargarDatos(){
   const rentaSnap = await empCol('renta_config').get();
   RENTA_DATA = {};
   rentaSnap.docs.forEach(d=>{ RENTA_DATA[d.id] = d.data(); });
+  const financSnap = await empCol('financiamiento_config').get();
+  FINANC_DATA = {};
+  financSnap.docs.forEach(d=>{ FINANC_DATA[d.id] = d.data(); });
   const metaDoc = await empCol('meta').doc('importacion').get();
   if(metaDoc.exists){
     document.getElementById('ultima-importacion').textContent = metaDoc.data().texto || '—';
@@ -689,6 +794,7 @@ async function cargarDatos(){
   renderHoy();
   renderClientes();
   renderRenta();
+  renderFinanciamiento();
 }
 
 function suscribirGestiones(){
@@ -789,6 +895,7 @@ function filtrarClientes(q){
   else if(fe==='vencido') lista=lista.filter(c=>c.dias_31_60>0||c.dias_61_90>0);
   else if(fe==='corriente') lista=lista.filter(c=>c.al_corriente>0&&!c.dias_1_30&&!c.dias_31_60);
   else if(fe==='renta') lista=lista.filter(c=>c.es_renta);
+  else if(fe==='financiamiento') lista=lista.filter(c=>c.es_financiamiento);
   renderClientes(lista);
 }
 function renderClientes(lista){
@@ -811,7 +918,7 @@ function renderClientes(lista){
       <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'} <button class="btn btn-sm" style="padding:1px 6px;margin-left:4px" title="Editar teléfono" onclick="event.stopPropagation();editarTelefono('${cl.id}')">✎</button></td>
       <td style="text-align:right"><strong>${fmt(cl.saldo_total)}</strong></td>
       <td><span class="pill ${est.cls}">${est.label}</span></td>
-      <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
+      <td>${cl.es_renta?'<span class="pill pill-purple">Renta</span>':cl.es_financiamiento?'<span class="pill pill-teal">Financiamiento</span>':'<span class="pill pill-gray">Crédito</span>'}</td>
       <td>
         <button class="btn btn-sm" onclick="verCliente('${cl.id}')">Ver</button>
         <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
@@ -829,7 +936,7 @@ function verCliente(id){
   panel.innerHTML=`
     <button class="detail-back" onclick="renderClientes()">← Volver a clientes</button>
     <div class="detail-header">
-      <div class="avatar ${cl.es_renta?'renta':''}">${initials(cl.nombre)}</div>
+      <div class="avatar ${cl.es_renta?'renta':cl.es_financiamiento?'financ':''}">${initials(cl.nombre)}</div>
       <div style="flex:1">
         <h2 style="font-size:15px;font-weight:600;margin-bottom:4px">${cl.nombre}</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)">
@@ -837,9 +944,11 @@ function verCliente(id){
           <button class="btn btn-sm" title="Editar teléfono" onclick="editarTelefono('${id}')">✎ Editar tel.</button>
           <span>ID: ${cl.id} · ${cl.plazo||'—'}</span>
         </div>
-        <div style="margin-top:8px;display:flex;gap:8px">
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="pill ${est.cls}">${est.label}</span>
           ${cl.es_renta?'<span class="pill pill-purple">Renta</span>':''}
+          ${cl.es_financiamiento?'<span class="pill pill-teal">Financiamiento</span>':''}
+          <button class="btn btn-sm" style="border-color:var(--teal);color:var(--teal)" onclick="abrirModalFinanciamiento('${id}')">${cl.es_financiamiento?'💳 Actualizar financiamiento':'💳 Marcar como financiamiento'}</button>
         </div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${id}')">📞 Registrar llamada</button>
@@ -880,7 +989,7 @@ function verCliente(id){
             ?g.facturasComprometidas.map(f=>`<div style="font-size:11px;white-space:nowrap"><span style="font-weight:500">${f.doc}</span> <span style="color:var(--muted)">$${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>`).join('')
             :'<span style="color:var(--muted);font-size:11px">—</span>';
           const abonoNote=g.esAbono&&g.montoAbono?`<div style="font-size:10px;color:var(--amber)">Abono: $${Number(g.montoAbono).toLocaleString('es-MX',{minimumFractionDigits:2})}</div>`:'';
-          return `<tr>
+          return `<tr onclick="verGestionDetalle('${g.firestoreId}')" style="cursor:pointer" title="Click para ver detalle completo">
           <td>${fmtDate(g.fecha)}<br><span style="font-size:10px;color:var(--muted)">${g.hora||''}</span></td>
           <td>${g.medio}</td>
           <td>${resultadoPill(g.resultado)}</td>
@@ -909,7 +1018,7 @@ function renderGestiones(lista){
   document.getElementById('tbody-gestiones').innerHTML=lista.length?lista.map(g=>{
     const cl=getCliente(g.clienteId);
     const sc=g.seguimiento===TODAY?'color:var(--amber);font-weight:600':g.seguimiento<TODAY?'color:var(--red);font-weight:600':'';
-    return `<tr>
+    return `<tr onclick="verGestionDetalle('${g.firestoreId}')" style="cursor:pointer" title="Click para ver detalle completo">
       <td style="color:var(--muted);font-size:11px">${g.id||g.firestoreId?.slice(-6)||'—'}</td>
       <td><strong>${cl.nombre}</strong></td>
       <td>${fmtDate(g.fecha)}</td><td>${g.medio}</td>
@@ -1074,7 +1183,8 @@ async function guardarGestion(){
       creado:firebase.firestore.FieldValue.serverTimestamp()
     });
     cerrarModal('modal-gestion');
-  }catch(e){alert('Error al guardar: '+e.message);}
+    toast('Gestión guardada correctamente');
+  }catch(e){toast('Error al guardar: '+e.message,'error');}
   btn.innerHTML='Guardar';btn.disabled=false;
 }
 
@@ -1132,6 +1242,88 @@ async function guardarRenta(){
   cerrarModal('modal-renta');
   renderRenta();
   renderHoy();
+  toast('Renta actualizada');
+}
+
+// ══════════════════════════════════════════════════════
+// FINANCIAMIENTO DE EQUIPO (mensualidades tipo renta)
+// ══════════════════════════════════════════════════════
+function renderFinanciamiento(){
+  const clientesFinanc=CLIENTES.filter(c=>c.es_financiamiento);
+  let alertas=0;
+  const rows=clientesFinanc.map(cl=>{
+    const fd=FINANC_DATA[cl.id]||{};
+    let dias='—',alertaHtml='';
+    if(fd.vencimiento){
+      const d=Math.ceil((new Date(fd.vencimiento+'T12:00:00')-new Date())/86400000);
+      dias=d;
+      if(d<0){alertaHtml='<span class="pill pill-red">Vencido</span>';alertas++;}
+      else if(d<=3){alertaHtml='<span class="pill pill-amber">Llamar hoy</span>';alertas++;}
+      else alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`;
+    }
+    return `<tr>
+      <td style="color:var(--muted)">${cl.id}</td>
+      <td><strong>${cl.nombre}</strong></td>
+      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td style="text-align:right">${fmt(cl.saldo_total)}</td>
+      <td style="text-align:right">${fd.monto?fmt(fd.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
+      <td>${fd.vencimiento?fmtDate(fd.vencimiento):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
+      <td style="text-align:center">${dias}</td>
+      <td>${alertaHtml||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>
+        <button class="btn btn-sm" onclick="abrirModalFinanciamiento('${cl.id}')">Actualizar</button>
+        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const banner=document.getElementById('banner-financiamiento');
+  if(banner) banner.innerHTML=alertas>0
+    ?`⚠️ ${alertas} cliente(s) de financiamiento con pago próximo o vencido`
+    :'✓ Todos los clientes de financiamiento sin alertas activas';
+  const tb=document.getElementById('tbody-financiamiento');
+  if(tb) tb.innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de financiamiento marcados todavía</td></tr>';
+}
+function abrirModalFinanciamiento(id){
+  const grupo=document.getElementById('mf-cliente-grupo');
+  const sel=document.getElementById('mf-cliente');
+  if(id){
+    // Actualizando un cliente ya marcado: ocultar el selector, fijar el cliente
+    grupo.style.display='none';
+    document.getElementById('mf-id').value=id;
+    const cl=getCliente(id);
+    document.getElementById('mf-titulo').textContent=(cl.es_financiamiento?'Actualizar financiamiento — ':'Marcar como financiamiento — ')+cl.nombre;
+    const fd=FINANC_DATA[id]||{};
+    document.getElementById('mf-monto').value=fd.monto||'';
+    document.getElementById('mf-vencimiento').value=fd.vencimiento||'';
+    document.getElementById('mf-notas').value=fd.notas||'';
+  } else {
+    // Marcando un cliente nuevo: mostrar selector para elegirlo
+    grupo.style.display='block';
+    document.getElementById('mf-titulo').textContent='Marcar cliente como financiamiento';
+    sel.innerHTML='<option value="">Selecciona un cliente...</option>'+
+      [...CLIENTES].sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .map(c=>`<option value="${c.id}">${c.nombre} (ID ${c.id})</option>`).join('');
+    document.getElementById('mf-id').value='';
+    document.getElementById('mf-monto').value='';
+    document.getElementById('mf-vencimiento').value='';
+    document.getElementById('mf-notas').value='';
+  }
+  document.getElementById('modal-financiamiento').classList.add('open');
+}
+async function guardarFinanciamiento(){
+  const id=document.getElementById('mf-id').value || document.getElementById('mf-cliente').value;
+  if(!id){ toast('Selecciona un cliente','error'); return; }
+  const data={monto:parseFloat(document.getElementById('mf-monto').value)||0,vencimiento:document.getElementById('mf-vencimiento').value,notas:document.getElementById('mf-notas').value};
+  await empCol('financiamiento_config').doc(String(id)).set(data);
+  FINANC_DATA[id]=data;
+  await empCol('clientes').doc(String(id)).set({es_financiamiento:true},{merge:true});
+  const cl=CLIENTES.find(c=>String(c.id)===String(id));
+  if(cl) cl.es_financiamiento=true;
+  cerrarModal('modal-financiamiento');
+  renderFinanciamiento();
+  renderClientes();
+  renderHoy();
+  toast('Financiamiento actualizado');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1196,8 +1388,8 @@ function initReporte(){
   const hoy=new Date();
   const lunes=new Date(hoy);lunes.setDate(hoy.getDate()-hoy.getDay()+1);
   const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
-  document.getElementById('rep-inicio').value=lunes.toISOString().split('T')[0];
-  document.getElementById('rep-fin').value=dom.toISOString().split('T')[0];
+  document.getElementById('rep-inicio').value=toLocalISO(lunes);
+  document.getElementById('rep-fin').value=toLocalISO(dom);
   actualizarPreviewReporte();
 }
 function actualizarPreviewReporte(){
@@ -1253,7 +1445,11 @@ function generarReporte(){
     table{page-break-inside:auto}
     tr{page-break-inside:avoid}
     a[href]:after{content:none!important}
+    .no-print{display:none!important}
   }</style></head><body>
+  <div class="no-print" style="text-align:right;margin-bottom:12px">
+    <button onclick="window.print()" style="background:#2E75B6;color:#fff;border:none;padding:9px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">🖨️ Imprimir / Guardar PDF</button>
+  </div>
   <div class="hdr"><p style="font-size:28px;margin:0 0 4px;font-weight:700;letter-spacing:1px;text-transform:uppercase">${EMPRESA_NOMBRE}</p><h1 style="font-size:16px;margin:0 0 6px;font-weight:400;opacity:.9">REPORTE SEMANAL DE COBRANZA</h1>
   <p style="font-size:12px;margin:0;opacity:.8">Semana: ${fmtD(inicio)} — ${fmtD(fin)} | Generado: ${fmtD(TODAY)}</p></div>
   <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
@@ -1298,7 +1494,7 @@ function generarReporte(){
   const win=window.open('','_blank');
   win.document.write(html);
   win.document.close();
-  win.onload=()=>{win.focus();win.print();};
+  win.focus();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1503,6 +1699,25 @@ function importarAS(input){
           });
           await batch.commit();
         }
+        // SAE deja de listar en la AS a los clientes que quedan totalmente saldados
+        // (no aparecen ni siquiera con $0) — no basta con procesar lo que SÍ viene en
+        // el archivo. Cualquier cliente que existía con saldo/facturas y NO aparece
+        // en esta AS se marca en $0 (se asume pagado), conservando nombre/teléfono.
+        const foundIds = new Set(parsed.map(c=>String(c.id)));
+        const existingSnap = await empCol('clientes').get();
+        const desaparecidos = existingSnap.docs
+          .map(d=>({id:d.id,...d.data()}))
+          .filter(c=>!foundIds.has(String(c.id)) && (Number(c.saldo_total)>0 || (c.facturas&&c.facturas.length>0)));
+        if(desaparecidos.length>0){
+          for(let i=0;i<desaparecidos.length;i+=batchSize){
+            const batch=db.batch();
+            desaparecidos.slice(i,i+batchSize).forEach(cl=>{
+              const ref=empCol('clientes').doc(String(cl.id));
+              batch.set(ref,{saldo_total:0,al_corriente:0,dias_1_30:0,dias_31_60:0,dias_61_90:0,dias_91_mas:0,facturas:[]},{merge:true});
+            });
+            await batch.commit();
+          }
+        }
         const total=withData.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
         const fmtN=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
         const texto=new Date().toLocaleDateString('es-MX')+' — '+parsed.length+' clientes · '+fmtN(total);
@@ -1511,7 +1726,7 @@ function importarAS(input){
         // para no perder de vista clientes que no aparecieron en este archivo.
         const cliSnap=await empCol('clientes').get();
         CLIENTES=cliSnap.docs.map(d=>({id:d.id,...d.data()}));
-        document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+parsed.length+' clientes procesados ('+withData.length+' con saldo o facturas activas) · Saldo '+fmtN(total)+'</p>';
+        document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+parsed.length+' clientes procesados ('+withData.length+' con saldo o facturas activas)'+(desaparecidos.length?' · '+desaparecidos.length+' saldados (ya no están en la AS)':'')+' · Saldo '+fmtN(total)+'</p>';
         document.getElementById('ultima-importacion').textContent=texto;
         renderHoy();renderClientes();renderRenta();
       } else {
@@ -1554,7 +1769,7 @@ function importarClientes(input){
 
 // COBRANZA
 function setRangoHoy(){
-  const h=new Date().toISOString().split('T')[0];
+  const h=toLocalISO(new Date());
   document.getElementById('cob-inicio').value=h;
   document.getElementById('cob-fin').value=h;
 }
@@ -1562,15 +1777,15 @@ function setRangoSemana(){
   const hoy=new Date();
   const lunes=new Date(hoy);lunes.setDate(hoy.getDate()-hoy.getDay()+1);
   const dom=new Date(lunes);dom.setDate(lunes.getDate()+6);
-  document.getElementById('cob-inicio').value=lunes.toISOString().split('T')[0];
-  document.getElementById('cob-fin').value=dom.toISOString().split('T')[0];
+  document.getElementById('cob-inicio').value=toLocalISO(lunes);
+  document.getElementById('cob-fin').value=toLocalISO(dom);
 }
 function setRangoMes(){
   const hoy=new Date();
   const ini=new Date(hoy.getFullYear(),hoy.getMonth(),1);
   const fin=new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
-  document.getElementById('cob-inicio').value=ini.toISOString().split('T')[0];
-  document.getElementById('cob-fin').value=fin.toISOString().split('T')[0];
+  document.getElementById('cob-inicio').value=toLocalISO(ini);
+  document.getElementById('cob-fin').value=toLocalISO(fin);
 }
 function cargarGestores(){
   const sel=document.getElementById('cob-gestor');
@@ -1607,7 +1822,7 @@ function consultarCobranza(){
   document.getElementById('tbody-cobranza').innerHTML=tablaGest.length?tablaGest.map(g=>{
     const cl=getCliente(g.clienteId);
     const bg=g.resultado==='Pagado confirmado'?'background:var(--green-l)':g.resultado==='Prometió pagar'||g.resultado==='Pagará hoy'?'background:var(--amber-l)':'';
-    return `<tr style="${bg}">
+    return `<tr style="${bg};cursor:pointer" onclick="verGestionDetalle('${g.firestoreId}')" title="Click para ver detalle completo">
       <td><strong>${cl.nombre}</strong></td>
       <td>${fmtDate(g.fecha)}</td>
       <td>${resultadoPill(g.resultado)}</td>
