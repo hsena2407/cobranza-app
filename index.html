@@ -219,6 +219,10 @@ tr:hover td{background:#F8FAFC}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Empresas
       </div>
+      <div class="nav-item admin-only" onclick="showPage('bitacora',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+        Bitácora
+      </div>
       <div class="nav-item admin-only" onclick="showPage('importar',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Importar AS
@@ -363,6 +367,33 @@ tr:hover td{background:#F8FAFC}
             <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario()">+ Agregar usuario</button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>Email</th><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead><tbody id="tbody-usuarios"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- BITÁCORA (admin) -->
+      <div class="page" id="page-bitacora">
+        <div class="card" style="padding:20px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:6px">Bitácora de movimientos</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Registro automático de quién hizo qué y cuándo. Se muestran los últimos 500 movimientos.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <select id="bit-usuario" onchange="renderBitacora()"><option value="">Todos los usuarios</option></select>
+            <select id="bit-accion" onchange="renderBitacora()">
+              <option value="">Todas las acciones</option>
+              <option value="gestion">Gestiones guardadas</option>
+              <option value="importar_as">Importaciones AS</option>
+              <option value="importar_clientes">Importación de teléfonos</option>
+              <option value="asignar">Asignación de gestor</option>
+              <option value="telefono">Teléfonos editados</option>
+              <option value="renta">Rentas</option>
+              <option value="financiamiento">Financiamientos</option>
+            </select>
+            <input type="date" id="bit-desde" onchange="renderBitacora()" title="Desde">
+            <input type="date" id="bit-hasta" onchange="renderBitacora()" title="Hasta">
+            <input type="text" id="bit-q" placeholder="Buscar (cliente, texto)..." oninput="renderBitacora()" style="min-width:180px">
+            <button class="btn btn-sm" onclick="cargarBitacora()">Actualizar</button>
+            <button class="btn btn-sm" onclick="exportarBitacora()">Exportar Excel</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody id="tbody-bitacora"></tbody></table></div>
         </div>
       </div>
 
@@ -613,6 +644,7 @@ const db = firebase.firestore();
 // STATE
 // ══════════════════════════════════════════════════════
 let CURRENT_USER = null;
+let CURRENT_USER_NOMBRE = '';
 let IS_ADMIN = false;
 let IS_SUPER = false;
 let EMPRESA_ID = null;
@@ -715,8 +747,10 @@ async function editarTelefono(id){
   if(nuevo===null) return; // cancelado
   const limpio=nuevo.trim();
   try{
+    const anterior=cl.tel||'';
     await empCol('clientes').doc(String(id)).set({tel:limpio},{merge:true});
     cl.tel=limpio;
+    logBitacora('telefono',cl.nombre+' · '+(anterior||'sin teléfono')+' → '+(limpio||'sin teléfono'));
     renderClientes();
     if(document.getElementById('detalle-cliente').classList.contains('open')) verCliente(id);
     renderHoy();
@@ -736,6 +770,7 @@ auth.onAuthStateChanged(async user => {
     if(userDoc.exists){
       const data = userDoc.data();
       IS_ADMIN = data.rol === 'admin' || data.rol === 'super';
+      CURRENT_USER_NOMBRE = data.nombre || '';
       IS_SUPER = data.rol === 'super';
       EMPRESA_ID = data.empresaId || null;
       document.getElementById('user-name-chip').textContent = data.nombre || user.email;
@@ -787,6 +822,10 @@ auth.onAuthStateChanged(async user => {
       document.getElementById('admin-chip').style.display = 'inline';
       document.getElementById('admin-chip').textContent = IS_SUPER ? 'SUPER' : 'ADMIN';
       document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+    }
+    // El super siempre ve el menú Empresas (diagnóstico de datos sueltos, revisión de empresas)
+    if(IS_SUPER){
+      document.querySelectorAll('.nav-item.super-only').forEach(el=>el.style.display='flex');
     }
     if(IS_SUPER && !EMPRESA_ACTIVA){
       // Respaldo: no se encontró la empresa de Stream; se deja el selector visible.
@@ -880,6 +919,7 @@ async function asignarGestor(clienteId, gestorId){
   try{
     await empCol('clientes').doc(String(clienteId)).set(data,{merge:true});
     const cl = CLIENTES.find(c=>String(c.id)===String(clienteId));
+    logBitacora('asignar',(cl?cl.nombre:clienteId)+' → '+(data.gestorAsignadoNombre||'Sin asignar'));
     if(cl){ cl.gestorAsignadoId=data.gestorAsignadoId; cl.gestorAsignadoNombre=data.gestorAsignadoNombre; }
     if(document.getElementById('detalle-cliente').classList.contains('open')) verCliente(clienteId);
     else filtrarClientes(document.getElementById('q-clientes').value);
@@ -902,9 +942,67 @@ async function asignarFiltradosA(){
       await batch.commit();
     }
     lista.forEach(c=>{ c.gestorAsignadoId=gestorId; c.gestorAsignadoNombre=nombre; });
+    logBitacora('asignar',lista.length+' clientes asignados en bloque a '+nombre);
     toast(lista.length+' clientes asignados a '+nombre);
     filtrarClientes(document.getElementById('q-clientes').value);
   }catch(e){ toast('Error al asignar: '+e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════════
+// BITÁCORA — registro de movimientos (solo se agrega, nunca se edita)
+// Se guarda en empresas/{id}/bitacora. Si falla, NO interrumpe la operación.
+// ══════════════════════════════════════════════════════
+let BITACORA=[];
+const BIT_ETIQUETAS={gestion:'Gestión guardada',importar_as:'Importación AS',importar_clientes:'Importación teléfonos',telefono:'Teléfono editado',asignar:'Asignación de gestor',renta:'Renta actualizada',financiamiento:'Financiamiento actualizado'};
+async function logBitacora(accion,detalle,extra){
+  try{
+    if(!EMPRESA_ACTIVA||!CURRENT_USER) return;
+    await empCol('bitacora').add(Object.assign({
+      accion,
+      detalle:detalle||'',
+      uid:CURRENT_USER.uid,
+      usuario:(typeof CURRENT_USER_NOMBRE!=='undefined'&&CURRENT_USER_NOMBRE)||CURRENT_USER.email||'',
+      fecha:toLocalISO(new Date()),
+      ts:firebase.firestore.FieldValue.serverTimestamp()
+    },extra||{}));
+  }catch(e){ console.warn('Bitácora no registrada:',e.message); }
+}
+async function cargarBitacora(){
+  if(!EMPRESA_ACTIVA||!IS_ADMIN) return;
+  try{
+    const snap=await empCol('bitacora').orderBy('ts','desc').limit(500).get();
+    BITACORA=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ BITACORA=[]; toast('Error al leer la bitácora: '+e.message,'error'); }
+  const sel=document.getElementById('bit-usuario'), actual=sel.value;
+  const usuarios=[...new Set(BITACORA.map(b=>b.usuario).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Todos los usuarios</option>'+usuarios.map(u=>'<option value="'+u.replace(/"/g,'&quot;')+'">'+u+'</option>').join('');
+  sel.value=actual;
+  renderBitacora();
+}
+function bitacoraFiltrada(){
+  const u=document.getElementById('bit-usuario').value, a=document.getElementById('bit-accion').value;
+  const d=document.getElementById('bit-desde').value, h=document.getElementById('bit-hasta').value;
+  const q=(document.getElementById('bit-q').value||'').toLowerCase();
+  return BITACORA.filter(b=>
+    (!u||b.usuario===u)&&(!a||b.accion===a)&&(!d||(b.fecha||'')>=d)&&(!h||(b.fecha||'')<=h)&&
+    (!q||((b.detalle||'')+' '+(b.usuario||'')).toLowerCase().includes(q)));
+}
+function bitFechaHora(b){
+  const t=b.ts&&b.ts.toDate?b.ts.toDate():null;
+  return t?t.toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):(b.fecha||'');
+}
+function renderBitacora(){
+  const lista=bitacoraFiltrada();
+  document.getElementById('tbody-bitacora').innerHTML=lista.length?lista.map(b=>
+    '<tr><td style="white-space:nowrap">'+bitFechaHora(b)+'</td><td>'+(b.usuario||'—')+'</td><td>'+(BIT_ETIQUETAS[b.accion]||b.accion)+'</td><td>'+(b.detalle||'')+'</td></tr>'
+  ).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos registrados</td></tr>';
+}
+function exportarBitacora(){
+  const filas=bitacoraFiltrada().map(b=>({'Fecha y hora':bitFechaHora(b),'Usuario':b.usuario||'','Acción':BIT_ETIQUETAS[b.accion]||b.accion,'Detalle':b.detalle||''}));
+  if(!filas.length){ toast('No hay movimientos para exportar','error'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filas),'Bitácora');
+  XLSX.writeFile(wb,'bitacora_'+toLocalISO(new Date())+'.xlsx');
 }
 
 function suscribirGestiones(){
@@ -933,6 +1031,7 @@ function showPage(id, el){
   if(el) el.classList.add('active');
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
+  if(id==='bitacora') cargarBitacora();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
 }
 
@@ -1312,6 +1411,8 @@ async function guardarGestion(){
       notas:document.getElementById('mg-notas').value,
       creado:firebase.firestore.FieldValue.serverTimestamp()
     });
+    const _cl=getCliente(clienteId);
+    logBitacora('gestion','Gestión a '+(_cl?_cl.nombre:clienteId)+' · '+document.getElementById('mg-fecha').value+' · '+document.getElementById('mg-medio').value+' · '+document.getElementById('mg-resultado').value+(esAbono?' · Abono $'+montoAbono:''),{clienteId:String(clienteId),gestorNombre});
     cerrarModal('modal-gestion');
     toast('Gestión guardada correctamente');
   }catch(e){toast('Error al guardar: '+e.message,'error');}
@@ -1418,6 +1519,8 @@ async function guardarRenta(){
   const data={monto:parseFloat(document.getElementById('mr-monto').value)||0,dia:leerDia('mr-dia'),notas:document.getElementById('mr-notas').value};
   await empCol('renta_config').doc(String(id)).set(data);
   RENTA_DATA[id]=data;
+  const _c1=getCliente(id);
+  logBitacora('renta',(_c1?_c1.nombre:id)+' · monto $'+data.monto+' · día de pago '+(data.dia||'—'));
   cerrarModal('modal-renta');
   renderRenta();
   renderHoy();
@@ -1467,6 +1570,7 @@ async function guardarFinanciamiento(){
   await empCol('clientes').doc(String(id)).set({es_financiamiento:true},{merge:true});
   const cl=CLIENTES.find(c=>String(c.id)===String(id));
   if(cl) cl.es_financiamiento=true;
+  logBitacora('financiamiento',(cl?cl.nombre:id)+' · monto $'+data.monto+' · día de pago '+(data.dia||'—'));
   cerrarModal('modal-financiamiento');
   renderFinanciamiento();
   renderClientes();
@@ -1912,6 +2016,7 @@ function importarAS(input){
         CLIENTES=cliSnap.docs.map(d=>({id:d.id,...d.data()}));
         document.getElementById('import-status').innerHTML='<p style="color:var(--green)">✅ '+parsed.length+' clientes procesados ('+withData.length+' con saldo o facturas activas)'+(desaparecidos.length?' · '+desaparecidos.length+' saldados (ya no están en la AS)':'')+' · Saldo '+fmtN(total)+'</p>';
         document.getElementById('ultima-importacion').textContent=texto;
+        logBitacora('importar_as','AS importada: '+parsed.length+' clientes ('+withData.length+' con saldo) · Saldo '+fmtN(total)+(desaparecidos.length?' · '+desaparecidos.length+' saldados':''));
         renderHoy();renderClientes();renderRenta();
       } else {
         document.getElementById('import-status').innerHTML='<p style="color:var(--red)">❌ No se encontraron clientes. Verifica el archivo.</p>';
@@ -1944,6 +2049,7 @@ function importarClientes(input){
         return cl;
       });
       if(act>0)await batch.commit();
+      logBitacora('importar_clientes',Object.keys(mapa).length+' clientes leídos · '+act+' teléfonos actualizados');
       document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--green)">✅ ${Object.keys(mapa).length} clientes leídos · ${act} teléfonos actualizados</p>`;
     }catch(err){
       document.getElementById('import-cli-status').innerHTML=`<p style="color:var(--red)">❌ Error: ${err.message}</p>`;
