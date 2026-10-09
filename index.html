@@ -231,6 +231,10 @@ tr:hover td{background:#F8FAFC}
       <div class="page active" id="page-hoy">
         <div class="kpi-grid" id="kpis-hoy"></div>
         <div class="card">
+          <div class="card-header"><span class="card-title" style="color:var(--purple)">Rentas y financiamientos atrasados</span></div>
+          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Tipo</th><th>Teléfono</th><th>Mensualidad</th><th>Vencido</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-cuotas-atraso"></tbody></table></div>
+        </div>
+        <div class="card">
           <div class="card-header">
             <span class="card-title">Llamar hoy</span>
             <button class="btn btn-primary btn-sm" onclick="abrirModalGestion()">
@@ -293,7 +297,7 @@ tr:hover td{background:#F8FAFC}
         <div style="background:var(--purple-l);border:1px solid #d5aee8;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;font-weight:500;color:var(--purple)" id="banner-renta"></div>
         <div class="card">
           <div class="card-header"><span class="card-title" style="color:var(--purple)">Clientes de renta — seguimiento mensual</span></div>
-          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Próx. vencimiento</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Monto renta ($)</th><th>Vencido ($)</th><th>Próx. pago</th><th>Atrasadas</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-renta"></tbody></table></div>
         </div>
       </div>
 
@@ -305,7 +309,7 @@ tr:hover td{background:#F8FAFC}
         </div>
         <div class="card">
           <div class="card-header"><span class="card-title" style="color:var(--teal)">Clientes de financiamiento de equipo — mensualidad</span></div>
-          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Mensualidad ($)</th><th>Próx. pago</th><th>Días</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-financiamiento"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Teléfono</th><th>Saldo ($)</th><th>Mensualidad ($)</th><th>Vencido ($)</th><th>Próx. pago</th><th>Atrasadas</th><th>Alerta</th><th></th></tr></thead><tbody id="tbody-financiamiento"></tbody></table></div>
         </div>
       </div>
 
@@ -490,8 +494,8 @@ tr:hover td{background:#F8FAFC}
   </div>
   <div class="modal-body">
     <input type="hidden" id="mr-id">
-    <div class="form-group"><label class="form-label">Monto mensual de renta ($)</label><input type="number" class="form-control" id="mr-monto" placeholder="0.00"></div>
-    <div class="form-group"><label class="form-label">Próximo vencimiento</label><input type="date" class="form-control" id="mr-vencimiento"></div>
+    <div class="form-group"><label class="form-label">Monto mensual de renta ($) — tal como se factura (con IVA)</label><input type="number" class="form-control" id="mr-monto" placeholder="0.00"></div>
+    <div class="form-group"><label class="form-label">Día de pago de cada mes (1 al 31)</label><input type="number" min="1" max="31" class="form-control" id="mr-dia" placeholder="Ej: 1"></div>
     <div class="form-group"><label class="form-label">Notas del contrato</label><textarea class="form-control" id="mr-notas" rows="2" placeholder="Ej: paga el día 1 de cada mes..."></textarea></div>
   </div>
   <div class="modal-footer">
@@ -514,8 +518,8 @@ tr:hover td{background:#F8FAFC}
       <label class="form-label">Cliente</label>
       <select class="form-control" id="mf-cliente"></select>
     </div>
-    <div class="form-group"><label class="form-label">Mensualidad ($)</label><input type="number" class="form-control" id="mf-monto" placeholder="0.00"></div>
-    <div class="form-group"><label class="form-label">Próximo pago</label><input type="date" class="form-control" id="mf-vencimiento"></div>
+    <div class="form-group"><label class="form-label">Mensualidad ($) — tal como se factura (con IVA)</label><input type="number" class="form-control" id="mf-monto" placeholder="0.00"></div>
+    <div class="form-group"><label class="form-label">Día de pago de cada mes (1 al 31)</label><input type="number" min="1" max="31" class="form-control" id="mf-dia" placeholder="Ej: 5"></div>
     <div class="form-group"><label class="form-label">Notas del contrato</label><textarea class="form-control" id="mf-notas" rows="2" placeholder="Ej: equipo de cómputo, paga el día 5 de cada mes..."></textarea></div>
   </div>
   <div class="modal-footer">
@@ -950,20 +954,28 @@ function renderHoy(){
   const venc = ultimas.filter(g=>g.seguimiento && g.seguimiento<TODAY);
   const saldoTotal = CLIENTES.reduce((a,c)=>a+(c.saldo_total>0?c.saldo_total:0),0);
   const criticos = CLIENTES.filter(c=>c.dias_91_mas>0).length;
-  const rentaAlerta = Object.entries(RENTA_DATA).filter(([id,rd])=>{
-    if(!rd.vencimiento) return false;
-    const dias = Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
-    return dias<=3;
-  }).length;
+  const atrasosCuota = cuotasConAtraso();
+  const rentaAlerta = atrasosCuota.filter(x=>x.e.critica).length; // críticas: 3 o más atrasadas
   document.getElementById('kpis-hoy').innerHTML = `
     <div class="kpi"><div class="kpi-label">Llamar hoy</div><div class="kpi-value danger">${hoy.length}</div></div>
     <div class="kpi"><div class="kpi-label">Seguimientos vencidos</div><div class="kpi-value warning">${venc.length}</div></div>
     <div class="kpi"><div class="kpi-label">Saldo total</div><div class="kpi-value">${fmt(saldoTotal)}</div></div>
     <div class="kpi"><div class="kpi-label">Críticos 91+</div><div class="kpi-value danger">${criticos}</div></div>
-    <div class="kpi"><div class="kpi-label">Renta por vencer</div><div class="kpi-value purple">${rentaAlerta}</div></div>
+    <div class="kpi"><div class="kpi-label">Renta / financ. críticas (${CUOTAS_ALERTA_CRITICA}+ atrasadas)</div><div class="kpi-value purple">${rentaAlerta}</div></div>
   `;
   document.getElementById('badge-hoy').textContent = hoy.length+' hoy';
   document.getElementById('badge-renta').textContent = rentaAlerta+' renta';
+  const tc=document.getElementById('tbody-cuotas-atraso');
+  if(tc) tc.innerHTML = atrasosCuota.length ? atrasosCuota.map(({cl,tipo,e})=>`<tr ${e.critica?'style="background:#FEF2F2"':''}>
+      <td><strong>${cl.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">ID ${cl.id}</span></td>
+      <td><span class="pill ${tipo==='Renta'?'pill-purple':'pill-teal'}">${tipo}</span></td>
+      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
+      <td style="text-align:right">${fmt(e.monto)}</td>
+      <td style="text-align:right;color:var(--red);font-weight:600">${fmt(e.vencido)}</td>
+      <td>${pillCuota(e)}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="abrirModalGestion('${cl.id}')">Llamar</button></td>
+    </tr>`).join('')
+    : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin rentas ni mensualidades atrasadas ✓</td></tr>';
   const makeRow=(g,showVenc)=>{
     const cl=getCliente(g.clienteId);
     const est=estatusCliente(cl);
@@ -1309,38 +1321,86 @@ async function guardarGestion(){
 // ══════════════════════════════════════════════════════
 // RENTA
 // ══════════════════════════════════════════════════════
-function renderRenta(){
-  const rentas=CLIENTES.filter(c=>c.es_renta);
-  let alertas=0;
-  const rows=rentas.map(cl=>{
-    const rd=RENTA_DATA[cl.id]||{};
-    let dias='—',alertaHtml='';
-    if(rd.vencimiento){
-      const d=Math.ceil((new Date(rd.vencimiento+'T12:00:00')-new Date())/86400000);
-      dias=d;
-      if(d<0){alertaHtml='<span class="pill pill-red">Vencido</span>';alertas++;}
-      else if(d<=3){alertaHtml='<span class="pill pill-amber">Llamar hoy</span>';alertas++;}
-      else alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`;
-    }
-    return `<tr>
+// ══════════════════════════════════════════════════════
+// RENTAS / MENSUALIDADES — cálculo automático
+// El usuario captura SOLO: monto mensual + día de pago. Todo lo demás sale solo:
+//  · próximo pago = el siguiente "día de pago" del calendario (se recorre cada mes)
+//  · atrasadas   = saldo VENCIDO (31+ días, misma convención del resto de la app)
+//                  ÷ monto mensual, redondeado (mínimo 1 si hay algo vencido)
+// El "pagó / no pagó" lo determina la AS: si ya pagó, el saldo vencido baja.
+// ══════════════════════════════════════════════════════
+const CUOTAS_ALERTA_CRITICA = 3; // alerta crítica con "más de 2" atrasadas = 3 o más
+function leerDia(id){ const n=parseInt(document.getElementById(id).value); return (n>=1&&n<=31)?n:null; }
+function vencidoCliente(cl){ return (cl.dias_31_60||0)+(cl.dias_61_90||0)+(cl.dias_91_mas||0); }
+function diaDePago(cfg){
+  if(!cfg) return null;
+  const d=Number(cfg.dia);
+  if(d>=1&&d<=31) return d;
+  if(cfg.vencimiento){ const f=new Date(cfg.vencimiento+'T12:00:00'); if(!isNaN(f)) return f.getDate(); } // datos capturados antes
+  return null;
+}
+function proximoPago(dia){
+  if(!dia) return null;
+  const hoy=new Date(); hoy.setHours(12,0,0,0);
+  const mk=(y,m)=>new Date(y,m,Math.min(dia,new Date(y,m+1,0).getDate()),12);
+  let f=mk(hoy.getFullYear(),hoy.getMonth());
+  if(f<hoy) f=mk(hoy.getFullYear(),hoy.getMonth()+1);
+  return f;
+}
+function estadoCuota(cl,cfg){
+  const monto=Number(cfg&&cfg.monto)||0;
+  const dia=diaDePago(cfg);
+  const pp=proximoPago(dia);
+  const diasPP=pp?Math.round((pp-new Date().setHours(12,0,0,0))/86400000):null;
+  const vencido=vencidoCliente(cl);
+  let atrasadas=0;
+  if(monto>0 && vencido>=1) atrasadas=Math.max(1,Math.round(vencido/monto));
+  return {monto,dia,pp,diasPP,vencido,atrasadas,sinMonto:!(monto>0),critica:atrasadas>=CUOTAS_ALERTA_CRITICA};
+}
+function pillCuota(e){
+  if(e.sinMonto) return '<span class="pill pill-gray">Captura el monto</span>';
+  if(e.critica) return `<span class="pill pill-red">⚠ ${e.atrasadas} atrasadas</span>`;
+  if(e.atrasadas>0) return `<span class="pill pill-amber">${e.atrasadas} atrasada${e.atrasadas>1?'s':''}</span>`;
+  if(e.diasPP!==null && e.diasPP<=3) return `<span class="pill pill-blue">Pago ${e.diasPP===0?'hoy':'en '+e.diasPP+' d'}</span>`;
+  return '<span class="pill pill-green">Al corriente</span>';
+}
+// Todos los clientes de renta y financiamiento con al menos 1 atrasada
+function cuotasConAtraso(){
+  const out=[];
+  CLIENTES.filter(c=>c.es_renta).forEach(cl=>{ const e=estadoCuota(cl,RENTA_DATA[cl.id]); if(e.atrasadas>0) out.push({cl,tipo:'Renta',e}); });
+  CLIENTES.filter(c=>c.es_financiamiento).forEach(cl=>{ const e=estadoCuota(cl,FINANC_DATA[cl.id]); if(e.atrasadas>0) out.push({cl,tipo:'Financiamiento',e}); });
+  return out.sort((a,b)=>b.e.atrasadas-a.e.atrasadas||b.e.vencido-a.e.vencido);
+}
+function renderTablaCuotas(lista,DATA,tbodyId,bannerId,txtVacio,fnEditar){
+  const filas=lista.map(cl=>({cl,e:estadoCuota(cl,DATA[cl.id])}))
+    .sort((a,b)=>b.e.atrasadas-a.e.atrasadas||b.e.vencido-a.e.vencido);
+  const conAtraso=filas.filter(f=>f.e.atrasadas>0).length;
+  const criticas=filas.filter(f=>f.e.critica).length;
+  const sinMonto=filas.filter(f=>f.e.sinMonto).length;
+  const rows=filas.map(({cl,e})=>`<tr ${e.critica?'style="background:#FEF2F2"':''}>
       <td style="color:var(--muted)">${cl.id}</td>
       <td><strong>${cl.nombre}</strong></td>
       <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
       <td style="text-align:right">${fmt(cl.saldo_total)}</td>
-      <td style="text-align:right">${rd.monto?fmt(rd.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
-      <td>${rd.vencimiento?fmtDate(rd.vencimiento):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
-      <td style="text-align:center">${dias}</td>
-      <td>${alertaHtml||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="text-align:right">${e.monto?fmt(e.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
+      <td style="text-align:right;${e.vencido>=1?'color:var(--red);font-weight:600':''}">${e.vencido>=1?fmt(e.vencido):'—'}</td>
+      <td>${e.pp?fmtDate(toLocalISO(e.pp))+' <span style="font-size:11px;color:var(--muted)">(día '+e.dia+')</span>':'<span style="color:var(--muted)">Sin día de pago</span>'}</td>
+      <td style="text-align:center;font-weight:600">${e.sinMonto?'—':e.atrasadas}</td>
+      <td>${pillCuota(e)}</td>
       <td>
-        <button class="btn btn-sm" onclick="abrirModalRenta('${cl.id}')">Actualizar</button>
+        <button class="btn btn-sm" onclick="${fnEditar}('${cl.id}')">Actualizar</button>
         <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
       </td>
-    </tr>`;
-  }).join('');
-  document.getElementById('banner-renta').innerHTML=alertas>0
-    ?`⚠️ ${alertas} cliente(s) de renta con pago próximo o vencido`
-    :'✓ Todos los clientes de renta sin alertas activas';
-  document.getElementById('tbody-renta').innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de renta</td></tr>';
+    </tr>`).join('');
+  const banner=document.getElementById(bannerId);
+  if(banner) banner.innerHTML=(conAtraso>0
+    ?`⚠️ ${conAtraso} cliente(s) con pagos atrasados · ${criticas} crítico(s) (${CUOTAS_ALERTA_CRITICA} o más atrasadas)`
+    :'✓ Ningún cliente con pagos atrasados')+(sinMonto?` · ${sinMonto} sin monto capturado`:'');
+  const tb=document.getElementById(tbodyId);
+  if(tb) tb.innerHTML=rows||`<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">${txtVacio}</td></tr>`;
+}
+function renderRenta(){
+  renderTablaCuotas(CLIENTES.filter(c=>c.es_renta),RENTA_DATA,'tbody-renta','banner-renta','Sin clientes de renta','abrirModalRenta');
 }
 function abrirModalRenta(id){
   const cl=getCliente(id);
@@ -1348,14 +1408,14 @@ function abrirModalRenta(id){
   document.getElementById('mr-titulo').textContent='Actualizar renta — '+cl.nombre;
   document.getElementById('mr-id').value=id;
   document.getElementById('mr-monto').value=rd.monto||'';
-  document.getElementById('mr-vencimiento').value=rd.vencimiento||'';
+  document.getElementById('mr-dia').value=diaDePago(rd)||'';
   document.getElementById('mr-notas').value=rd.notas||'';
   document.getElementById('modal-renta').classList.add('open');
 }
 async function guardarRenta(){
   if(!EMPRESA_ACTIVA){ alert('No hay una empresa activa; selecciona una en el menú Empresas antes de guardar.'); return; }
   const id=document.getElementById('mr-id').value;
-  const data={monto:parseFloat(document.getElementById('mr-monto').value)||0,vencimiento:document.getElementById('mr-vencimiento').value,notas:document.getElementById('mr-notas').value};
+  const data={monto:parseFloat(document.getElementById('mr-monto').value)||0,dia:leerDia('mr-dia'),notas:document.getElementById('mr-notas').value};
   await empCol('renta_config').doc(String(id)).set(data);
   RENTA_DATA[id]=data;
   cerrarModal('modal-renta');
@@ -1368,39 +1428,7 @@ async function guardarRenta(){
 // FINANCIAMIENTO DE EQUIPO (mensualidades tipo renta)
 // ══════════════════════════════════════════════════════
 function renderFinanciamiento(){
-  const clientesFinanc=CLIENTES.filter(c=>c.es_financiamiento);
-  let alertas=0;
-  const rows=clientesFinanc.map(cl=>{
-    const fd=FINANC_DATA[cl.id]||{};
-    let dias='—',alertaHtml='';
-    if(fd.vencimiento){
-      const d=Math.ceil((new Date(fd.vencimiento+'T12:00:00')-new Date())/86400000);
-      dias=d;
-      if(d<0){alertaHtml='<span class="pill pill-red">Vencido</span>';alertas++;}
-      else if(d<=3){alertaHtml='<span class="pill pill-amber">Llamar hoy</span>';alertas++;}
-      else alertaHtml=`<span class="pill pill-green">OK (${d}d)</span>`;
-    }
-    return `<tr>
-      <td style="color:var(--muted)">${cl.id}</td>
-      <td><strong>${cl.nombre}</strong></td>
-      <td>${cl.tel?`<a href="tel:${cl.tel}" style="color:var(--blue);text-decoration:none;font-weight:500">${cl.tel}</a>`:'—'}</td>
-      <td style="text-align:right">${fmt(cl.saldo_total)}</td>
-      <td style="text-align:right">${fd.monto?fmt(fd.monto):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
-      <td>${fd.vencimiento?fmtDate(fd.vencimiento):'<span style="color:var(--muted)">Sin capturar</span>'}</td>
-      <td style="text-align:center">${dias}</td>
-      <td>${alertaHtml||'<span style="color:var(--muted)">—</span>'}</td>
-      <td>
-        <button class="btn btn-sm" onclick="abrirModalFinanciamiento('${cl.id}')">Actualizar</button>
-        <button class="btn btn-primary btn-sm" style="margin-left:4px" onclick="abrirModalGestion('${cl.id}')">Llamar</button>
-      </td>
-    </tr>`;
-  }).join('');
-  const banner=document.getElementById('banner-financiamiento');
-  if(banner) banner.innerHTML=alertas>0
-    ?`⚠️ ${alertas} cliente(s) de financiamiento con pago próximo o vencido`
-    :'✓ Todos los clientes de financiamiento sin alertas activas';
-  const tb=document.getElementById('tbody-financiamiento');
-  if(tb) tb.innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Sin clientes de financiamiento marcados todavía</td></tr>';
+  renderTablaCuotas(CLIENTES.filter(c=>c.es_financiamiento),FINANC_DATA,'tbody-financiamiento','banner-financiamiento','Sin clientes de financiamiento marcados todavía','abrirModalFinanciamiento');
 }
 function abrirModalFinanciamiento(id){
   const grupo=document.getElementById('mf-cliente-grupo');
@@ -1413,7 +1441,7 @@ function abrirModalFinanciamiento(id){
     document.getElementById('mf-titulo').textContent=(cl.es_financiamiento?'Actualizar financiamiento — ':'Marcar como financiamiento — ')+cl.nombre;
     const fd=FINANC_DATA[id]||{};
     document.getElementById('mf-monto').value=fd.monto||'';
-    document.getElementById('mf-vencimiento').value=fd.vencimiento||'';
+    document.getElementById('mf-dia').value=diaDePago(fd)||'';
     document.getElementById('mf-notas').value=fd.notas||'';
   } else {
     // Marcando un cliente nuevo: mostrar selector para elegirlo
@@ -1424,7 +1452,7 @@ function abrirModalFinanciamiento(id){
       .map(c=>`<option value="${c.id}">${c.nombre} (ID ${c.id})</option>`).join('');
     document.getElementById('mf-id').value='';
     document.getElementById('mf-monto').value='';
-    document.getElementById('mf-vencimiento').value='';
+    document.getElementById('mf-dia').value='';
     document.getElementById('mf-notas').value='';
   }
   document.getElementById('modal-financiamiento').classList.add('open');
@@ -1433,7 +1461,7 @@ async function guardarFinanciamiento(){
   if(!EMPRESA_ACTIVA){ toast('No hay una empresa activa; selecciona una en el menú Empresas.','error'); return; }
   const id=document.getElementById('mf-id').value || document.getElementById('mf-cliente').value;
   if(!id){ toast('Selecciona un cliente','error'); return; }
-  const data={monto:parseFloat(document.getElementById('mf-monto').value)||0,vencimiento:document.getElementById('mf-vencimiento').value,notas:document.getElementById('mf-notas').value};
+  const data={monto:parseFloat(document.getElementById('mf-monto').value)||0,dia:leerDia('mf-dia'),notas:document.getElementById('mf-notas').value};
   await empCol('financiamiento_config').doc(String(id)).set(data);
   FINANC_DATA[id]=data;
   await empCol('clientes').doc(String(id)).set({es_financiamiento:true},{merge:true});
