@@ -720,7 +720,13 @@ function verGestionDetalle(fid){
   const g=GESTIONES.find(x=>String(x.firestoreId)===String(fid));
   if(!g) return;
   const cl=getCliente(g.clienteId);
-  const facts=(g.facturasComprometidas||[]).map(f=>`${f.doc}: $${Number(f.saldo).toLocaleString('es-MX',{minimumFractionDigits:2})}`).join('<br>')||'—';
+  const _m=n=>'$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2});
+  const _fc=g.facturasComprometidas||[];
+  const facts=_fc.length
+    ? '<table style="width:100%;border-collapse:collapse;font-size:13px">'+_fc.map(f=>`<tr><td style="padding:4px 0;font-weight:600">${f.doc}</td><td style="padding:4px 0;text-align:right">${_m(f.saldo)}</td></tr>`).join('')
+      +`<tr><td style="padding:6px 0 0;border-top:1px solid var(--brd);color:var(--muted)">Total comprometido</td><td style="padding:6px 0 0;border-top:1px solid var(--brd);text-align:right;font-weight:700">${_m(_fc.reduce((a,f)=>a+Number(f.saldo||0),0))}</td></tr></table>`
+      +(g.esAbono&&g.montoAbono?`<div style="margin-top:6px;font-size:12px;color:var(--amber)">Abono parcial: ${_m(g.montoAbono)}</div>`:'')
+    : '<span style="color:var(--muted)">Sin facturas seleccionadas en esta gestión</span>';
   document.getElementById('modal-nota-body').innerHTML=`
     <div style="font-size:14px;font-weight:600;margin-bottom:12px">${cl.nombre}</div>
     <div class="info-grid" style="margin-bottom:14px">
@@ -733,7 +739,7 @@ function verGestionDetalle(fid){
       <div class="info-box"><div class="info-box-label">Próx. seguimiento</div><div class="info-box-value">${fmtDate(g.seguimiento)}</div></div>
     </div>
     <div class="form-label" style="margin-bottom:6px">Facturas comprometidas</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">${facts}</div>
+    <div style="margin-bottom:14px">${facts}</div>
     <div class="form-label" style="margin-bottom:6px">Notas</div>
     <div style="background:#F8FAFC;border:1px solid #EBF3FB;border-radius:8px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-word">${g.notas||'Sin notas'}</div>
   `;
@@ -1388,13 +1394,14 @@ async function guardarGestion(){
   try{
     const userDoc=await db.collection('usuarios').doc(CURRENT_USER.uid).get();
     const gestorNombre=userDoc.exists?userDoc.data().nombre:CURRENT_USER.email;
-    const gCount=await empCol('gestiones').get();
+    // Folio único sin leer la colección completa (las reglas solo dejan leer las propias)
+    const folio='GES-'+Date.now();
     // Capture selected facturas detail
     const facturasComprometidas=[...document.querySelectorAll('.fact-check:checked')].map(c=>({doc:c.dataset.doc,saldo:parseFloat(c.dataset.saldo||0)}));
     const esAbono=document.getElementById('mg-es-abono').checked;
     const montoAbono=parseFloat(document.getElementById('mg-monto-abono')?.value)||0;
     await empCol('gestiones').add({
-      id:'GES-'+String(gCount.size+1).padStart(3,'0'),
+      id:folio,
       clienteId,
       gestorId:CURRENT_USER.uid,
       gestorNombre,
