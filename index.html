@@ -456,7 +456,7 @@ tr:hover td{background:#F8FAFC}
     <div class="form-group" style="position:relative">
       <label class="form-label">Cliente</label>
       <input type="text" class="form-control" id="mg-cliente-input" placeholder="Buscar por nombre o ID..." autocomplete="off"
-        oninput="filtrarClientesModal(this.value)" onfocus="filtrarClientesModal(this.value)" onblur="setTimeout(()=>cerrarDropdownCliente(),200)">
+        oninput="document.getElementById('mg-cliente').value='';filtrarClientesModal(this.value)" onfocus="filtrarClientesModal(this.value)" onblur="setTimeout(()=>cerrarDropdownCliente(),200)">
       <input type="hidden" id="mg-cliente">
       <div id="mg-cliente-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #BDD7EE;border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
     </div>
@@ -1268,10 +1268,9 @@ function renderGestiones(lista){
 // ══════════════════════════════════════════════════════
 function abrirModalGestion(clienteId){
   if(!EMPRESA_ACTIVA){ alert('Primero selecciona una empresa (menú Empresas) antes de registrar una gestión.'); return; }
-  const sel=document.getElementById('mg-cliente');
-  sel.innerHTML='<option value="">Selecciona un cliente...</option>'+
-    [...clientesVisibles()].sort((a,b)=>a.nombre.localeCompare(b.nombre))
-    .map(c=>`<option value="${c.id}" ${String(c.id)==String(clienteId)?'selected':''}>${c.nombre}</option>`).join('');
+  // El cliente seleccionado vive en este campo oculto: SIEMPRE se reinicia al abrir,
+  // para no arrastrar el cliente de la gestión anterior.
+  document.getElementById('mg-cliente').value = clienteId ? String(clienteId) : '';
   const fechaInput=document.getElementById('mg-fecha');
   fechaInput.value=TODAY;
   if(IS_ADMIN){
@@ -1388,7 +1387,15 @@ function calcularAbonoFacturas(){
 async function guardarGestion(){
   if(!EMPRESA_ACTIVA){ alert('No hay una empresa activa; selecciona una en el menú Empresas antes de guardar.'); return; }
   const clienteId=document.getElementById('mg-cliente').value;
-  if(!clienteId){alert('Selecciona un cliente');return;}
+  if(!clienteId){alert('Selecciona un cliente de la lista (escribe el nombre y da clic en el resultado).');return;}
+  // Seguro extra: el nombre que se ve debe coincidir con el cliente que se va a guardar
+  const _clSel=CLIENTES.find(c=>String(c.id)===String(clienteId));
+  const _txt=(document.getElementById('mg-cliente-input').value||'').trim().toLowerCase();
+  if(!_clSel||_clSel.nombre.trim().toLowerCase()!==_txt){
+    document.getElementById('mg-cliente').value='';
+    alert('El cliente no está bien seleccionado. Escribe el nombre y elige el cliente de la lista.');
+    return;
+  }
   const btn=document.getElementById('btn-guardar-gestion');
   btn.innerHTML='<span class="spinner"></span> Guardando...';btn.disabled=true;
   try{
@@ -1421,7 +1428,7 @@ async function guardarGestion(){
     const _cl=getCliente(clienteId);
     logBitacora('gestion','Gestión a '+(_cl?_cl.nombre:clienteId)+' · '+document.getElementById('mg-fecha').value+' · '+document.getElementById('mg-medio').value+' · '+document.getElementById('mg-resultado').value+(esAbono?' · Abono $'+montoAbono:''),{clienteId:String(clienteId),gestorNombre});
     cerrarModal('modal-gestion');
-    toast('Gestión guardada correctamente');
+    toast('Gestión guardada: '+_clSel.nombre);
   }catch(e){toast('Error al guardar: '+e.message,'error');}
   btn.innerHTML='Guardar';btn.disabled=false;
 }
