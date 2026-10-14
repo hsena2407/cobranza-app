@@ -456,7 +456,7 @@ tr:hover td{background:#F8FAFC}
     <div class="form-group" style="position:relative">
       <label class="form-label">Cliente</label>
       <input type="text" class="form-control" id="mg-cliente-input" placeholder="Buscar por nombre o ID..." autocomplete="off"
-        oninput="document.getElementById('mg-cliente').value='';filtrarClientesModal(this.value)" onfocus="filtrarClientesModal(this.value)" onblur="setTimeout(()=>cerrarDropdownCliente(),200)">
+        oninput="document.getElementById('mg-cliente').value='';filtrarClientesModal(this.value)" onfocus="this.select()" onblur="setTimeout(()=>cerrarDropdownCliente(),250)">
       <input type="hidden" id="mg-cliente">
       <div id="mg-cliente-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #BDD7EE;border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
     </div>
@@ -913,7 +913,10 @@ async function cargarGestoresAsignables(){
 // Admin/super ven todos los clientes; el gestor solo los que tiene asignados.
 function clientesVisibles(){
   if(IS_ADMIN) return CLIENTES;
-  return CLIENTES.filter(c=>c.gestorAsignadoId===CURRENT_USER.uid);
+  // Del gestor: los asignados a él + aquellos con los que ya tiene gestiones propias
+  // (GESTIONES del gestor solo contiene las suyas), para no perder clientes en seguimiento.
+  const conHistorial=new Set(GESTIONES.map(g=>String(g.clienteId)));
+  return CLIENTES.filter(c=>c.gestorAsignadoId===CURRENT_USER.uid||conHistorial.has(String(c.id)));
 }
 function opcionesGestor(sel){
   return '<option value="">Sin asignar</option>'+GESTORES_ASIGNABLES.map(g=>`<option value="${g.id}" ${sel===g.id?'selected':''}>${g.nombre||g.email}</option>`).join('');
@@ -1305,9 +1308,15 @@ function filtrarClientesModal(q){
   const matches=clientesVisibles().filter(c=>
     c.nombre.toLowerCase().includes(qL)||String(c.id).includes(qL)
   ).sort((a,b)=>a.nombre.localeCompare(b.nombre)).slice(0,20);
-  if(!matches.length){ dd.style.display='none'; return; }
+  if(!matches.length){
+    dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--muted)">Sin resultados entre tus clientes.'+(IS_ADMIN?'':' Si el cliente no aparece, pide al administrador que te lo asigne.')+'</div>';
+    dd.style.display='block';
+    return;
+  }
+  // pointerdown (con preventDefault) selecciona al instante, antes de que el campo pierda el foco
+  // y cierre la lista; así funciona igual con mouse, dedo o clic lento.
   dd.innerHTML=matches.map(c=>`
-    <div onclick="seleccionarClienteModal('${c.id}','${c.nombre.replace(/'/g,"\'")}')"
+    <div onpointerdown="event.preventDefault();seleccionarClienteModal('${String(c.id).replace(/'/g,"")}',decodeURIComponent('${encodeURIComponent(c.nombre)}'))"
       style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #F0F4F8"
       onmouseover="this.style.background='#EBF3FB'" onmouseout="this.style.background='#fff'">
       <span style="font-weight:600">${c.nombre}</span>
@@ -1892,7 +1901,9 @@ function importarAS(input){
       const range=XLSX.utils.decode_range(ws['!ref']||'A1:A1');
       const maxRow=range.e.r+1;
       const toN=v=>parseFloat(String(v).replace(/,/g,''))||0;
-      const isNum=v=>{const n=parseFloat(String(v).replace(/,/g,''));return !isNaN(n)&&String(v).trim()!=='';};
+      // Número = la celda completa es un importe (ej. 1,989.40 o -5.00). OJO: no usar solo parseFloat,
+      // porque un nombre como "3 COLORES IMPRENTA" o "3G-M SALUD ANIMAL" daría 3 y se tomaría por número.
+      const isNum=v=>/^\s*-?\$?\s*(\d[\d,]*(\.\d+)?|\.\d+)\s*$/.test(String(v));
       const SKIP=new Set(['1','4','9']);
       const DOC=/^MTY\s|^MTY[A-Z]|^SKRTA|^BAN|^SPEI|^CHQ|^BBVA\s|^EFEC|^PAGO|^15 SEP|^ANTI\s|^CART|^TDD|^TPV|^BCMR|^BNMX|^BNTE|^LIANA|^PATRICIA|^EFECT\s|^TRANS\s|^RESTO\s|^MELCHOR|^DEV NOM|^Resto /i;
       const HDRB=new Set(['Usuario:','Clientes','Concepto','Saldo','Vendedores:','Fecha de referencia','Reporte detallado']);
