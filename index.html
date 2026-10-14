@@ -1014,6 +1014,54 @@ function exportarBitacora(){
   XLSX.writeFile(wb,'bitacora_'+toLocalISO(new Date())+'.xlsx');
 }
 
+// ══════════════════════════════════════════════════════
+// FOLIO CONSECUTIVO DE GESTIONES (GES-001, GES-002, ...)
+// Contador en empresas/{id}/meta/contador_gestiones, incrementado con transacción
+// para que dos gestoras guardando a la vez nunca reciban el mismo número.
+// ══════════════════════════════════════════════════════
+const folioTxt=n=>'GES-'+String(n).padStart(3,'0');
+async function siguienteFolio(){
+  try{
+    const ref=empCol('meta').doc('contador_gestiones');
+    const n=await db.runTransaction(async tx=>{
+      const snap=await tx.get(ref);
+      if(!snap.exists) throw new Error('contador sin inicializar');
+      const next=(Number(snap.data().ultimo)||0)+1;
+      tx.update(ref,{ultimo:next});
+      return next;
+    });
+    return folioTxt(n);
+  }catch(e){
+    // Respaldo (solo si el admin aún no ha abierto el sistema tras actualizar): folio único largo
+    console.warn('Folio de respaldo:',e.message);
+    return 'GES-'+Date.now();
+  }
+}
+// El admin, al abrir el sistema: crea el contador si no existe y renumera los folios largos
+// (GES-1791995959938...) que se generaron con la versión anterior. Solo cambia la etiqueta "id".
+let _contadorRevisado=false;
+async function inicializarContadorGestiones(){
+  if(!IS_ADMIN||!EMPRESA_ACTIVA) return;
+  try{
+    const ref=empCol('meta').doc('contador_gestiones');
+    const [cSnap]=await Promise.all([ref.get()]);
+    const hayLargos=GESTIONES.some(g=>/^GES-\d{7,}$/.test(g.id||''));
+    if(cSnap.exists&&!hayLargos) return;
+    const snap=await empCol('gestiones').get();
+    const docs=snap.docs;
+    const cortos=docs.filter(d=>!/^GES-\d{7,}$/.test(d.data().id||''));
+    let max=0; cortos.forEach(d=>{const m=/^GES-(\d{1,6})$/.exec(d.data().id||''); if(m) max=Math.max(max,+m[1]);});
+    let n=Math.max(max,cortos.length,cSnap.exists?(Number(cSnap.data().ultimo)||0):0);
+    const largos=docs.filter(d=>/^GES-\d{7,}$/.test(d.data().id||''))
+      .sort((a,b)=>String(a.data().fecha||'').localeCompare(String(b.data().fecha||''))||(a.data().id||'').localeCompare(b.data().id||''));
+    const batch=db.batch();
+    largos.forEach(d=>{ n++; batch.update(d.ref,{id:folioTxt(n)}); });
+    batch.set(ref,{ultimo:n},{merge:true});
+    await batch.commit();
+    if(largos.length) logBitacora('gestion','Folios renumerados: '+largos.length+' gestiones · contador en '+n);
+  }catch(e){ console.warn('No se pudo inicializar el contador de folios:',e.message); }
+}
+
 function suscribirGestiones(){
   if(!EMPRESA_ACTIVA) return;
   let query;
@@ -1024,9 +1072,10 @@ function suscribirGestiones(){
     query = empCol('gestiones').where('gestorId','==',CURRENT_USER.uid).limit(500);
   }
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
-    GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||''); });
+    GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||'',undefined,{numeric:true}); });
     renderHoy();
     renderGestiones();
+    if(IS_ADMIN&&!_contadorRevisado){ _contadorRevisado=true; inicializarContadorGestiones(); }
   });
 }
 
@@ -1410,8 +1459,8 @@ async function guardarGestion(){
   try{
     const userDoc=await db.collection('usuarios').doc(CURRENT_USER.uid).get();
     const gestorNombre=userDoc.exists?userDoc.data().nombre:CURRENT_USER.email;
-    // Folio único sin leer la colección completa (las reglas solo dejan leer las propias)
-    const folio='GES-'+Date.now();
+    // Folio consecutivo con contador (no lee la colección completa: las reglas solo dejan leer las propias)
+    const folio=await siguienteFolio();
     // Capture selected facturas detail
     const facturasComprometidas=[...document.querySelectorAll('.fact-check:checked')].map(c=>({doc:c.dataset.doc,saldo:parseFloat(c.dataset.saldo||0)}));
     const esAbono=document.getElementById('mg-es-abono').checked;
