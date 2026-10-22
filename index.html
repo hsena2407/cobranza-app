@@ -1066,10 +1066,13 @@ function suscribirGestiones(){
   if(!EMPRESA_ACTIVA) return;
   let query;
   if(IS_ADMIN){
-    query = empCol('gestiones').orderBy('fecha','desc').limit(500);
+    // Admin: las más recientes primero; tope alto (antes 500 dejaba fuera gestiones y mostraba seguimientos viejos)
+    query = empCol('gestiones').orderBy('fecha','desc').limit(5000);
   } else {
-    // Gestores: no orderBy to avoid composite index requirement
-    query = empCol('gestiones').where('gestorId','==',CURRENT_USER.uid).limit(500);
+    // Gestores: TODAS sus gestiones, sin límite. OJO: con .limit() y sin orderBy, Firestore devuelve
+    // las primeras N por ID de documento (que es aleatorio), no las más recientes: las gestiones
+    // nuevas podían quedar fuera y reaparecían seguimientos viejos. Se ordena en el navegador.
+    query = empCol('gestiones').where('gestorId','==',CURRENT_USER.uid);
   }
   UNSUBSCRIBE_GESTIONES = query.onSnapshot(snap => {
     GESTIONES = snap.docs.map(d=>({firestoreId:d.id,...d.data()})).sort((a,b)=>{ const fd=b.fecha.localeCompare(a.fecha); if(fd!==0) return fd; return (b.id||'').localeCompare(a.id||'',undefined,{numeric:true}); });
