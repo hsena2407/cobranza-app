@@ -396,6 +396,7 @@ tr:hover td{background:#F8FAFC}
               </select></div>
             <div class="form-group" style="margin:0"><label class="form-label">Ordenar por</label>
               <select class="form-control" id="seg-orden" style="width:150px" onchange="renderSeguimiento()">
+                <option value="numero">Número de cliente</option>
                 <option value="vencido">Mayor vencido</option>
                 <option value="saldo">Mayor saldo</option>
                 <option value="nombre">Nombre</option>
@@ -1152,7 +1153,7 @@ function datosSeguimiento(){
     const prox=(GESTIONES.find(g=>String(g.clienteId)===id&&g.fecha<=fin&&g.seguimiento)||{}).seguimiento||'';
     return {cl,saldo,vencido,coment,prox,activo:actSet.has(id),nGest:GESTIONES.filter(g=>String(g.clienteId)===id&&enPeriodo(g)).length};
   }).filter(f=>base==='as'||base==='sin'?true:(sinSaldo||f.saldo>0));
-  const cmp={vencido:(a,b)=>b.vencido-a.vencido||b.saldo-a.saldo, saldo:(a,b)=>b.saldo-a.saldo, nombre:(a,b)=>String(a.cl.nombre).localeCompare(String(b.cl.nombre))}[orden];
+  const cmp={numero:(a,b)=>String(a.cl.id).localeCompare(String(b.cl.id),undefined,{numeric:true}), vencido:(a,b)=>b.vencido-a.vencido||b.saldo-a.saldo, saldo:(a,b)=>b.saldo-a.saldo, nombre:(a,b)=>String(a.cl.nombre).localeCompare(String(b.cl.nombre))}[orden];
   filas.sort(cmp);
   return {ini,fin,gestor,base,filas,sinAtender:filas.filter(f=>!f.activo).length,totSaldo:filas.reduce((a,f)=>a+f.saldo,0),totVenc:filas.reduce((a,f)=>a+f.vencido,0)};
 }
