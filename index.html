@@ -219,6 +219,10 @@ tr:hover td{background:#F8FAFC}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Empresas
       </div>
+      <div class="nav-item admin-only" onclick="showPage('seguimiento',this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+        Seguimiento con comentarios
+      </div>
       <div class="nav-item admin-only" onclick="showPage('bitacora',this)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
         Bitácora
@@ -367,6 +371,48 @@ tr:hover td{background:#F8FAFC}
             <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario()">+ Agregar usuario</button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>Email</th><th>Nombre</th><th>Rol</th><th>Estado</th></tr></thead><tbody id="tbody-usuarios"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- SEGUIMIENTO CON COMENTARIOS (admin) -->
+      <div class="page" id="page-seguimiento">
+        <div class="card" style="padding:20px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">Reporte de seguimiento con comentarios</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Clientes con saldo (última AS), su adeudo y los últimos comentarios capturados por las gestoras. Puedes limitarlo a los que tuvieron gestión o a los que nadie ha atendido en el periodo.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end">
+            <div class="form-group" style="margin:0"><label class="form-label">Desde</label><input type="date" class="form-control" id="seg-inicio" style="width:150px" onchange="renderSeguimiento()"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Hasta</label><input type="date" class="form-control" id="seg-fin" style="width:150px" onchange="renderSeguimiento()"></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Clientes a mostrar</label>
+              <select class="form-control" id="seg-base" style="width:250px" onchange="renderSeguimiento()">
+                <option value="as">Todos los que tienen saldo (última AS)</option>
+                <option value="act">Solo con gestión/comentario en el periodo</option>
+                <option value="sin">Solo SIN atender en el periodo</option>
+              </select></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Gestora</label><select class="form-control" id="seg-gestor" style="width:170px" onchange="renderSeguimiento()"><option value="">Todas</option></select></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Comentarios</label>
+              <select class="form-control" id="seg-modo" style="width:200px" onchange="renderSeguimiento()">
+                <option value="hist">Últimos 4 (historial)</option>
+                <option value="periodo">Últimos 4 del periodo</option>
+              </select></div>
+            <div class="form-group" style="margin:0"><label class="form-label">Ordenar por</label>
+              <select class="form-control" id="seg-orden" style="width:150px" onchange="renderSeguimiento()">
+                <option value="vencido">Mayor vencido</option>
+                <option value="saldo">Mayor saldo</option>
+                <option value="nombre">Nombre</option>
+              </select></div>
+            <label style="font-size:12px;display:flex;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" id="seg-sinsaldo" onchange="renderSeguimiento()"> Incluir clientes sin saldo</label>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-sm" onclick="segRango('semana')">Esta semana (lun–vie)</button>
+            <button class="btn btn-sm" onclick="segRango('pasada')">Semana pasada</button>
+            <button class="btn btn-sm" onclick="segRango('hoy')">Hoy</button>
+            <span style="flex:1"></span>
+            <button class="btn btn-sm" style="border-color:var(--blue);color:var(--blue)" onclick="abrirModalComentario()">+ Agregar comentario</button>
+            <button class="btn btn-primary btn-sm" onclick="imprimirSeguimiento()">🖨️ Imprimir / Guardar PDF</button>
+            <button class="btn btn-sm" onclick="exportarSeguimiento()">Exportar Excel</button>
+          </div>
+          <div id="seg-resumen" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th style="text-align:right">Vencido</th><th>Comentarios (más reciente primero)</th><th>Próx. seguimiento</th></tr></thead><tbody id="tbody-seguimiento"></tbody></table></div>
         </div>
       </div>
 
@@ -609,6 +655,31 @@ tr:hover td{background:#F8FAFC}
   <div class="modal-footer">
     <button class="btn" onclick="cerrarModal('modal-usuario')">Cancelar</button>
     <button class="btn btn-primary" onclick="crearUsuario()" id="btn-crear-usuario">Crear usuario</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL COMENTARIO MANUAL (admin) -->
+<div class="modal-bg" id="modal-comentario">
+<div class="modal" style="width:520px">
+  <div class="modal-header">
+    <span class="modal-title">Agregar comentario a un cliente</span>
+    <button class="btn btn-sm" style="border:none" onclick="cerrarModal('modal-comentario')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-group" style="position:relative">
+      <label class="form-label">Cliente</label>
+      <input type="text" class="form-control" id="mc-cliente-input" placeholder="Buscar por nombre o ID..." autocomplete="off"
+        oninput="document.getElementById('mc-cliente').value='';filtrarClientesComentario(this.value)" onfocus="this.select()" onblur="setTimeout(()=>{document.getElementById('mc-dd').style.display='none'},250)">
+      <input type="hidden" id="mc-cliente">
+      <div id="mc-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #BDD7EE;border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Fecha del comentario</label><input type="date" class="form-control" id="mc-fecha" style="width:170px"></div>
+    <div class="form-group"><label class="form-label">Comentario</label><textarea class="form-control" id="mc-texto" rows="4" placeholder="Ej. Hablé con el Sr. Pérez, quedó de pagar el viernes..."></textarea></div>
+  </div>
+  <div class="modal-footer" style="padding:14px 20px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--brd)">
+    <button class="btn" onclick="cerrarModal('modal-comentario')">Cancelar</button>
+    <button class="btn btn-primary" id="btn-guardar-comentario" onclick="guardarComentario()">Guardar comentario</button>
   </div>
 </div>
 </div>
@@ -958,6 +1029,201 @@ async function asignarFiltradosA(){
 }
 
 // ══════════════════════════════════════════════════════
+// REPORTE DE SEGUIMIENTO CON COMENTARIOS
+// Cliente + adeudo + últimos 4 comentarios de las gestoras (como las notas en rojo de la AS).
+// ══════════════════════════════════════════════════════
+const escH=v=>String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function segRango(tipo){
+  const hoy=new Date();
+  const lunes=new Date(hoy); lunes.setDate(hoy.getDate()-((hoy.getDay()+6)%7)); // lunes de esta semana
+  let ini,fin;
+  if(tipo==='hoy'){ ini=fin=toLocalISO(hoy); }
+  else {
+    if(tipo==='pasada') lunes.setDate(lunes.getDate()-7);
+    const vie=new Date(lunes); vie.setDate(lunes.getDate()+4);
+    ini=toLocalISO(lunes); fin=toLocalISO(vie);
+  }
+  document.getElementById('seg-inicio').value=ini;
+  document.getElementById('seg-fin').value=fin;
+  renderSeguimiento();
+}
+function initSeguimiento(){
+  const sel=document.getElementById('seg-gestor'), actual=sel.value;
+  const nombres=[...new Set(GESTIONES.map(g=>g.gestorNombre).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Todas</option>'+nombres.map(n=>`<option value="${escH(n)}">${escH(n)}</option>`).join('');
+  sel.value=actual;
+  if(!document.getElementById('seg-inicio').value) segRango('semana'); else renderSeguimiento();
+  cargarComentariosAdm();
+}
+// Comentarios manuales del admin: empresas/{id}/comentarios (separados de las gestiones para no
+// alterar las Alertas del día ni los conteos de gestiones de las gestoras).
+let COMENTARIOS_ADM=[];
+async function cargarComentariosAdm(){
+  if(!EMPRESA_ACTIVA||!IS_ADMIN) return;
+  try{
+    const snap=await empCol('comentarios').get();
+    COMENTARIOS_ADM=snap.docs.map(d=>({firestoreId:d.id,...d.data()}));
+  }catch(e){ COMENTARIOS_ADM=[]; console.warn('Comentarios no cargados:',e.message); }
+  renderSeguimiento();
+}
+function abrirModalComentario(clienteId){
+  document.getElementById('mc-cliente').value=clienteId?String(clienteId):'';
+  const cl=clienteId?CLIENTES.find(c=>String(c.id)===String(clienteId)):null;
+  document.getElementById('mc-cliente-input').value=cl?cl.nombre:'';
+  document.getElementById('mc-fecha').value=TODAY;
+  document.getElementById('mc-texto').value='';
+  document.getElementById('mc-dd').style.display='none';
+  document.getElementById('modal-comentario').classList.add('open');
+}
+function filtrarClientesComentario(q){
+  const dd=document.getElementById('mc-dd');
+  if(!q){ dd.style.display='none'; return; }
+  const qL=q.toLowerCase().trim();
+  const m=CLIENTES.filter(c=>String(c.nombre).toLowerCase().includes(qL)||String(c.id).includes(qL))
+    .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))).slice(0,20);
+  dd.innerHTML=m.length?m.map(c=>`<div onpointerdown="event.preventDefault();elegirClienteComentario(decodeURIComponent('${encodeURIComponent(String(c.id))}'))"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #F0F4F8" onmouseover="this.style.background='#EBF3FB'" onmouseout="this.style.background='#fff'">
+      <span style="font-weight:600">${escH(c.nombre)}</span><span style="color:var(--muted);font-size:11px;margin-left:8px">ID: ${escH(c.id)}</span></div>`).join('')
+    :'<div style="padding:10px 12px;font-size:12px;color:var(--muted)">Sin resultados</div>';
+  dd.style.display='block';
+}
+function elegirClienteComentario(id){
+  const cl=CLIENTES.find(c=>String(c.id)===String(id)); if(!cl) return;
+  document.getElementById('mc-cliente').value=String(cl.id);
+  document.getElementById('mc-cliente-input').value=cl.nombre;
+  document.getElementById('mc-dd').style.display='none';
+}
+async function guardarComentario(){
+  if(!EMPRESA_ACTIVA||!IS_ADMIN) return;
+  const id=document.getElementById('mc-cliente').value;
+  const cl=CLIENTES.find(c=>String(c.id)===String(id));
+  const txt=(document.getElementById('mc-cliente-input').value||'').trim().toLowerCase();
+  if(!cl||String(cl.nombre).trim().toLowerCase()!==txt){ alert('Escribe el nombre del cliente y elígelo de la lista.'); return; }
+  const texto=document.getElementById('mc-texto').value.trim();
+  if(!texto){ alert('Escribe el comentario.'); return; }
+  const fecha=document.getElementById('mc-fecha').value||TODAY;
+  const btn=document.getElementById('btn-guardar-comentario'); btn.disabled=true;
+  try{
+    await empCol('comentarios').add({clienteId:String(cl.id),fecha,texto,autorId:CURRENT_USER.uid,autor:CURRENT_USER_NOMBRE||CURRENT_USER.email||'',creado:firebase.firestore.FieldValue.serverTimestamp()});
+    logBitacora('gestion','Comentario manual a '+cl.nombre+' ('+fecha+'): '+texto.slice(0,120),{clienteId:String(cl.id)});
+    cerrarModal('modal-comentario');
+    toast('Comentario agregado a '+cl.nombre);
+    await cargarComentariosAdm();
+  }catch(e){ toast('Error al guardar el comentario: '+e.message+' (revisa que las reglas de Firestore incluyan "comentarios")','error'); }
+  btn.disabled=false;
+}
+async function borrarComentario(fid){
+  if(!IS_ADMIN||!confirm('¿Borrar este comentario?')) return;
+  try{
+    const c=COMENTARIOS_ADM.find(x=>x.firestoreId===fid);
+    await empCol('comentarios').doc(fid).delete();
+    logBitacora('gestion','Comentario manual borrado'+(c?' de '+(getCliente(c.clienteId).nombre)+': '+(c.texto||'').slice(0,80):''));
+    await cargarComentariosAdm();
+  }catch(e){ toast('Error al borrar: '+e.message,'error'); }
+}
+function datosSeguimiento(){
+  const ini=document.getElementById('seg-inicio').value, fin=document.getElementById('seg-fin').value;
+  const gestor=document.getElementById('seg-gestor').value;
+  const modo=document.getElementById('seg-modo').value;
+  const orden=document.getElementById('seg-orden').value;
+  const sinSaldo=document.getElementById('seg-sinsaldo').checked;
+  const enPeriodo=g=>g.fecha>=ini&&g.fecha<=fin&&(!gestor||g.gestorNombre===gestor);
+  // Los comentarios manuales se tratan como entradas más (resultado "Nota")
+  const manuales=COMENTARIOS_ADM.map(c=>({manualId:c.firestoreId,clienteId:c.clienteId,fecha:c.fecha||'',gestorNombre:c.autor||'Admin',resultado:'Nota',notas:c.texto||'',creado:c.creado}));
+  const base=document.getElementById('seg-base').value;
+  // Clientes con actividad en el periodo (gestión de la gestora filtrada, o nota manual del admin)
+  const actSet=new Set(GESTIONES.filter(enPeriodo).map(g=>String(g.clienteId)));
+  if(!gestor) manuales.filter(m=>m.fecha>=ini&&m.fecha<=fin).forEach(m=>actSet.add(String(m.clienteId)));
+  // Vigentes = clientes con saldo en la última AS importada (los saldados quedan en $0 al importar)
+  const conSaldo=CLIENTES.filter(c=>(Number(c.saldo_total)||0)>0&&(!gestor||c.gestorAsignadoNombre===gestor||actSet.has(String(c.id)))).map(c=>String(c.id));
+  let ids;
+  if(base==='act') ids=[...actSet];
+  else if(base==='sin') ids=conSaldo.filter(id=>!actSet.has(id));
+  else ids=[...new Set([...conSaldo,...(sinSaldo?actSet:[])])];
+  const filas=ids.map(id=>{
+    const cl=CLIENTES.find(c=>String(c.id)===id)||{id,nombre:'Cliente '+id,saldo_total:0};
+    const saldo=Number(cl.saldo_total)||0;
+    const vencido=(cl.dias_31_60||0)+(cl.dias_61_90||0)+(cl.dias_91_mas||0);
+    // GESTIONES ya está ordenado de más reciente a más antigua; se mezclan con las notas manuales por fecha
+    let gs=GESTIONES.filter(g=>String(g.clienteId)===id&&g.fecha<=fin&&(!gestor||g.gestorNombre===gestor));
+    let ms=manuales.filter(m=>String(m.clienteId)===id&&m.fecha<=fin);
+    if(modo==='periodo'){ gs=gs.filter(g=>g.fecha>=ini); ms=ms.filter(m=>m.fecha>=ini); }
+    const coment=[...gs,...ms].sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).slice(0,4);
+    const prox=(GESTIONES.find(g=>String(g.clienteId)===id&&g.fecha<=fin&&g.seguimiento)||{}).seguimiento||'';
+    return {cl,saldo,vencido,coment,prox,activo:actSet.has(id),nGest:GESTIONES.filter(g=>String(g.clienteId)===id&&enPeriodo(g)).length};
+  }).filter(f=>base==='as'||base==='sin'?true:(sinSaldo||f.saldo>0));
+  const cmp={vencido:(a,b)=>b.vencido-a.vencido||b.saldo-a.saldo, saldo:(a,b)=>b.saldo-a.saldo, nombre:(a,b)=>String(a.cl.nombre).localeCompare(String(b.cl.nombre))}[orden];
+  filas.sort(cmp);
+  return {ini,fin,gestor,base,filas,sinAtender:filas.filter(f=>!f.activo).length,totSaldo:filas.reduce((a,f)=>a+f.saldo,0),totVenc:filas.reduce((a,f)=>a+f.vencido,0)};
+}
+const fmtM=n=>'$'+Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+function lineaComentario(g){
+  const txt=(g.notas||'').trim();
+  const borrar=g.manualId?` <button onclick="borrarComentario('${escH(g.manualId)}')" title="Borrar este comentario" style="border:none;background:none;color:#999;cursor:pointer;font-size:12px">✕</button>`:'';
+  return `<div style="margin:0 0 3px"><b>${fmtDate(g.fecha)}</b> · ${escH(g.gestorNombre||'—')} · <i>${escH(g.resultado||'')}</i>${txt?' — '+escH(txt):''}${borrar}</div>`;
+}
+function renderSeguimiento(){
+  const d=datosSeguimiento();
+  const ultAS=(document.getElementById('ultima-importacion')||{}).textContent||'';
+  document.getElementById('seg-resumen').innerHTML=`<b>${d.filas.length}</b> clientes · Saldo <b>${fmtM(d.totSaldo)}</b> · Vencido <b style="color:var(--red)">${fmtM(d.totVenc)}</b>`
+    +(d.base!=='act'?` · <b style="color:#E67E22">${d.sinAtender}</b> sin atender en el periodo`:'')
+    +(ultAS&&ultAS!=='—'?`<br>Saldos de la última AS importada: ${escH(ultAS)}`:'');
+  document.getElementById('tbody-seguimiento').innerHTML=d.filas.length?d.filas.map(f=>`
+    <tr style="vertical-align:top">
+      <td style="min-width:200px"><div style="font-weight:700">${escH(f.cl.nombre)}</div><div style="font-size:11px;color:var(--muted)">ID ${escH(f.cl.id)}${f.cl.plazo&&f.cl.plazo!=='--'?' · '+escH(f.cl.plazo):''} · ${f.nGest} gestión(es) en el periodo${f.activo?'':' · <b style="color:#E67E22">sin atender</b>'}</div>
+        <button class="btn btn-sm" style="margin-top:4px;padding:1px 8px;font-size:11px" onclick="abrirModalComentario('${escH(f.cl.id)}')">+ Comentario</button></td>
+      <td style="text-align:right;white-space:nowrap">${fmtM(f.saldo)}</td>
+      <td style="text-align:right;white-space:nowrap;color:var(--red);font-weight:600">${f.vencido>0?fmtM(f.vencido):'—'}</td>
+      <td style="color:#C0392B;font-size:12px">${f.coment.map(lineaComentario).join('')||'<span style="color:var(--muted)">Sin comentarios</span>'}</td>
+      <td style="white-space:nowrap">${f.prox?fmtDate(f.prox):'—'}</td>
+    </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Sin gestiones en el periodo seleccionado</td></tr>';
+}
+function imprimirSeguimiento(){
+  const d=datosSeguimiento();
+  const fmtL=x=>new Date(x+'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Seguimiento de cobranza</title>
+  <style>body{font-family:Arial,sans-serif;font-size:11px;margin:0;padding:20px;color:#111}
+  .hdr{border-bottom:3px solid #111;padding-bottom:8px;margin-bottom:10px}
+  .hdr h1{font-size:20px;margin:0}.hdr p{margin:2px 0;font-size:12px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:10px;border-bottom:2px solid #111;padding:5px 6px}
+  td{padding:6px;border-bottom:1px solid #ddd;vertical-align:top}
+  .r{text-align:right;white-space:nowrap}.nom{font-weight:bold;font-size:12px}
+  .com{color:#C0392B;font-size:10.5px}.com div{margin-bottom:2px}
+  .tot td{border-top:2px solid #111;font-weight:bold}
+  tr{page-break-inside:avoid}
+  @media print{@page{size:letter landscape;margin:12mm}body{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}</style></head><body>
+  <div class="no-print" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#2E75B6;color:#fff;border:none;padding:9px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">🖨️ Imprimir / Guardar PDF</button></div>
+  <div class="hdr"><h1>${escH(EMPRESA_NOMBRE)}</h1><p><b>Seguimiento de cobranza con comentarios</b></p>
+  <p>Periodo: ${fmtL(d.ini)} — ${fmtL(d.fin)}${d.gestor?' · Gestora: '+escH(d.gestor):''} · Generado: ${fmtL(TODAY)}</p>
+  <p style="font-size:11px;color:#444">${d.base==='as'?'Base: todos los clientes con saldo en la última AS':d.base==='sin'?'Base: clientes con saldo SIN atender en el periodo':'Base: clientes con gestión o comentario en el periodo'}${((document.getElementById('ultima-importacion')||{}).textContent||'').trim()&&document.getElementById('ultima-importacion').textContent!=='—'?' ('+escH(document.getElementById('ultima-importacion').textContent)+')':''}</p></div>
+  <table><thead><tr><th>Cliente</th><th class="r">Saldo</th><th class="r">Vencido</th><th>Comentarios (más reciente primero)</th><th>Próx. seg.</th></tr></thead><tbody>
+  ${d.filas.map(f=>`<tr><td><div class="nom">${escH(f.cl.nombre)}</div><div style="font-size:10px;color:#555">ID ${escH(f.cl.id)}${f.cl.plazo&&f.cl.plazo!=='--'?' · '+escH(f.cl.plazo):''}${f.activo?'':' · <b>sin atender en el periodo</b>'}</div></td>
+    <td class="r">${fmtM(f.saldo)}</td><td class="r">${f.vencido>0?fmtM(f.vencido):'—'}</td>
+    <td class="com">${f.coment.map(g=>`<div><b>${fmtDate(g.fecha)}</b> · ${escH(g.gestorNombre||'—')} · <i>${escH(g.resultado||'')}</i>${(g.notas||'').trim()?' — '+escH(g.notas.trim()):''}</div>`).join('')||'Sin comentarios'}</td>
+    <td class="r">${f.prox?fmtDate(f.prox):'—'}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px">Sin gestiones en el periodo</td></tr>'}
+  <tr class="tot"><td>TOTAL (${d.filas.length} clientes)</td><td class="r">${fmtM(d.totSaldo)}</td><td class="r">${fmtM(d.totVenc)}</td><td></td><td></td></tr>
+  </tbody></table></body></html>`;
+  const win=window.open('','_blank');
+  if(!win){ toast('El navegador bloqueó la ventana. Permite ventanas emergentes para este sitio.','error'); return; }
+  win.document.write(html); win.document.close(); win.focus();
+}
+function exportarSeguimiento(){
+  const d=datosSeguimiento();
+  if(!d.filas.length){ toast('No hay clientes para exportar','error'); return; }
+  const filas=d.filas.map(f=>{
+    const o={'ID':f.cl.id,'Cliente':f.cl.nombre,'Plazo':f.cl.plazo||'','Saldo':f.saldo,'Vencido (31+ días)':f.vencido,
+      'Al corriente':f.cl.al_corriente||0,'1-30':f.cl.dias_1_30||0,'31-60':f.cl.dias_31_60||0,'61-90':f.cl.dias_61_90||0,'91+':f.cl.dias_91_mas||0,
+      'Próx. seguimiento':f.prox||'','Atendido en el periodo':f.activo?'Sí':'No'};
+    for(let i=0;i<4;i++){ const g=f.coment[i]; o['Comentario '+(i+1)]=g?`${g.fecha} · ${g.gestorNombre||''} · ${g.resultado||''}${(g.notas||'').trim()?' — '+g.notas.trim():''}`:''; }
+    return o;
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filas),'Seguimiento');
+  XLSX.writeFile(wb,'seguimiento_'+d.ini+'_a_'+d.fin+'.xlsx');
+}
+
+// ══════════════════════════════════════════════════════
 // BITÁCORA — registro de movimientos (solo se agrega, nunca se edita)
 // Se guarda en empresas/{id}/bitacora. Si falla, NO interrumpe la operación.
 // ══════════════════════════════════════════════════════
@@ -1093,6 +1359,7 @@ function showPage(id, el){
   if(id==='reporte') initReporte();
   if(id==='usuarios') renderUsuarios();
   if(id==='bitacora') cargarBitacora();
+  if(id==='seguimiento') initSeguimiento();
   if(id==='cobranza'){cargarGestores();setRangoSemana();}
 }
 
